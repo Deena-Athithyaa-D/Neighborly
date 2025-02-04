@@ -4,6 +4,7 @@ import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaView, Text, StatusBar, StyleSheet, View, Button } from 'react-native';
 import Communities from './Pages/Communities'; // Correct import without curly braces
 import Home from './Pages/Home'; // Correct import without curly braces
+import Availability from './Pages/Availability'; // Correct import without curly braces
 
 
 const Stack = createStackNavigator();
@@ -15,6 +16,7 @@ export default function App() {
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Communities" component={Communities} />
         <Stack.Screen name="Homes" component={Home}/>
+        <Stack.Screen name="Availability" component={Availability}/>
       </Stack.Navigator>
     </NavigationContainer>
   );

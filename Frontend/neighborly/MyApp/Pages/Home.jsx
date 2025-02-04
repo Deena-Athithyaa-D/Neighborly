@@ -1,8 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { View, TouchableOpacity, Animated, TextInput, Image, StyleSheet, Text, FlatList } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { useNavigation } from '@react-navigation/native'; // Import useNavigation
 
 const Home = () => {
+  const navigation = useNavigation(); // Hook for navigation
   const [isSearching, setIsSearching] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [postText, setPostText] = useState('');
@@ -136,6 +138,14 @@ const Home = () => {
         <Text style={styles.postButtonText}>Post</Text>
       </TouchableOpacity>
 
+      {/* Go to Availability Button */}
+      <TouchableOpacity
+        style={styles.availabilityButton}
+        onPress={() => navigation.navigate('Availability')} // Navigate to AvailabilityPage
+      >
+        <Text style={styles.availabilityButtonText}>Go to Availability</Text>
+      </TouchableOpacity>
+
       {/* User Posts Section */}
       <View style={styles.postsContainer}>
         <Text style={styles.postsTitle}>Your Posts....</Text>
@@ -233,6 +243,26 @@ const styles = StyleSheet.create({
     fontSize: 14, // Smaller font size
     fontWeight: 'bold',
     textTransform: 'uppercase', // Uppercase text
+  },
+  availabilityButton: {
+    backgroundColor: '#6C63FF',
+    borderRadius: 25,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 16,
+    marginTop: 16,
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+  },
+  availabilityButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
   },
   postsContainer: {
     flex: 1,
