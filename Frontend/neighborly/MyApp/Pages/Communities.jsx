@@ -1,17 +1,17 @@
 import React, { useState } from 'react';
-import { SafeAreaView, FlatList, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
+import { SafeAreaView, FlatList, Text, TouchableOpacity, StyleSheet, View, Button } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 
-// Dummy JSON data
+// Dummy JSON data with lat, lng, and name
 const dummyData = [
-  { id: '1', name: 'Item 1' },
-  { id: '2', name: 'Item 2' },
-  { id: '3', name: 'Item 3' },
-  { id: '4', name: 'Item 4' },
-  { id: '5', name: 'Item 5' },
+  { id: '1', name: 'Location 1', latitude: 12.838, longitude: 80.0782 },
+  { id: '2', name: 'Location 2', latitude: 12.835, longitude: 80.0795 },
+  { id: '3', name: 'Location 3', latitude: 12.837, longitude: 80.0778 },
+  { id: '4', name: 'Location 4', latitude: 12.836, longitude: 80.0756 },
+  { id: '5', name: 'Location 5', latitude: 12.839, longitude: 80.0768 },
 ];
 
-export default function Communities() {
+export default function Communities({ navigation }) {
   const [selectedId, setSelectedId] = useState(null); // Track selected item
 
   // Handle item selection
@@ -31,6 +31,17 @@ export default function Communities() {
     );
   };
 
+  // Render a button at the end of the list
+  const renderFooter = () => (
+    <View style={styles.footer}>
+      <Button
+        title="Go to Home"
+        onPress={() => navigation.navigate('Homes')} // Navigate to the Home screen
+        color="#6C63FF"
+      />
+    </View>
+  );
+
   return (
     <SafeAreaView style={styles.container}>
       {/* Map Container */}
@@ -39,18 +50,21 @@ export default function Communities() {
           style={styles.map}
           provider={PROVIDER_GOOGLE}
           initialRegion={{
-            latitude: 12.838,
+            latitude: 12.838, // Initial map center
             longitude: 80.0782,
-            latitudeDelta: 0.0922,
-            longitudeDelta: 0.0421,
+            latitudeDelta: 0.01, // Zoomed in for nearby locations
+            longitudeDelta: 0.01,
           }}
         >
-          {/* Add Markers if needed */}
-          <Marker
-            coordinate={{ latitude: 12.838, longitude: 80.0782 }}
-            title="Marker Title"
-            description="Marker Description"
-          />
+          {/* Render markers dynamically from dummyData */}
+          {dummyData.map((location) => (
+            <Marker
+              key={location.id}
+              coordinate={{ latitude: location.latitude, longitude: location.longitude }}
+              title={location.name} // Display name as the marker title
+              description={`Lat: ${location.latitude}, Lng: ${location.longitude}`} // Optional description
+            />
+          ))}
         </MapView>
       </View>
 
@@ -60,6 +74,7 @@ export default function Communities() {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         style={styles.list}
+        ListFooterComponent={renderFooter} // Add button at the end
       />
     </SafeAreaView>
   );
@@ -93,5 +108,9 @@ const styles = StyleSheet.create({
   itemText: {
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  footer: {
+    padding: 20,
+    alignItems: 'center',
   },
 });
