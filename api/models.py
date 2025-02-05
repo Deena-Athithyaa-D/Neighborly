@@ -5,9 +5,6 @@ class User(models.Model):
     
     uuid = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(unique=True)
-    
-    def __str__(self):
-        return self.email
 
 class Profile(models.Model):
     
@@ -65,4 +62,8 @@ class Requests(models.Model):
     request_type = models.CharField(max_length=30)
     title = models.CharField(max_length=100)
     description = models.CharField(max_length=500)
+    from_time = models.CharField(max_length=20,null=True,blank=True)
+    to_time = models.CharField(max_length=20,null=True,blank=True)
+    from_date = models.CharField(max_length=20,null=True,blank=True)
+    to_date = models.CharField(max_length=20,null=True,blank=True)
     provider_id = models.ForeignKey(User, on_delete=models.CASCADE,null=True,blank=True, related_name="provider_request")
