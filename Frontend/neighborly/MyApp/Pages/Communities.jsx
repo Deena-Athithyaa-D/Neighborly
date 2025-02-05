@@ -52,9 +52,7 @@ export default function Communities() {
     setSelectedId(id);
     setSelectedTitle(name);
 
-    // Navigate to the home page when a community is selected
-    navigation.navigate("Homes");
-
+    navigation.replace("HomeTabs");
     if (mapRef.current) {
       mapRef.current.animateToRegion({
         latitude,

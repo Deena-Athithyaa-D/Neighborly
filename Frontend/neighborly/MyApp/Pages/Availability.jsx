@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Image, TouchableOpacity, Modal, TextInput, Alert } from "react-native";
+import { View, Text, StyleSheet, Image, TouchableOpacity, Modal, Alert } from "react-native";
+import { Menu, TextInput } from "react-native-paper";
+import DateTimePickerModal from "react-native-modal-datetime-picker";
 
 const AvailabilityPage = () => {
   const today = new Date();
@@ -39,48 +41,70 @@ const AvailabilityPage = () => {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [date, setDate] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [time, setTime] = useState("");
+  const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+  const [isTimePickerVisible, setTimePickerVisible] = useState(false);
+  const [pickerType, setPickerType] = useState("from"); // To track which picker is active
 
-  // Validate date format (YYYY-MM-DD)
-  const validateDate = (input) => {
-    const regex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!regex.test(input)) {
-      Alert.alert("Invalid Date", "Please enter a valid date in the format YYYY-MM-DD.");
-      return false;
-    }
-    return true;
+  // Show date picker
+  const showDatePicker = (type) => {
+    setPickerType(type);
+    setDatePickerVisible(true);
   };
 
-  // Validate time format (HH:MM)
-  const validateTime = (input) => {
-    const regex = /^\d{2}:\d{2}$/;
-    if (!regex.test(input)) {
-      Alert.alert("Invalid Time", "Please enter a valid time in the format HH:MM.");
-      return false;
+  // Hide date picker
+  const hideDatePicker = () => {
+    setDatePickerVisible(false);
+  };
+
+  // Handle date selection
+  const handleDateConfirm = (date) => {
+    const formattedDate = date.toISOString().split("T")[0];
+    if (pickerType === "from") {
+      setFromDate(formattedDate);
+    } else {
+      setToDate(formattedDate);
     }
-    return true;
+    hideDatePicker();
+  };
+
+  // Show time picker
+  const showTimePicker = () => {
+    setTimePickerVisible(true);
+  };
+
+  // Hide time picker
+  const hideTimePicker = () => {
+    setTimePickerVisible(false);
+  };
+
+  // Handle time selection
+  const handleTimeConfirm = (time) => {
+    const formattedTime = time.toTimeString().split(" ")[0].slice(0, 5); // Format as HH:MM
+    setTime(formattedTime);
+    hideTimePicker();
   };
 
   const handleRequest = () => {
-    // Validate inputs
-    if (!validateDate(date)) {
-      return; // Stop if date is invalid
-    }
-    if (!validateTime(time)) {
-      return; // Stop if time is invalid
+    if (!fromDate || !toDate || !time) {
+      Alert.alert("Error", "Please fill all fields.");
+      return;
     }
 
     console.log("Request Details:", {
       item: selectedItem,
-      date,
+      fromDate,
+      toDate,
       time,
     });
 
     // Close the input modal and show the success modal
     setModalVisible(false);
     setSuccessModalVisible(true);
-    setDate("");
+    setFromDate("");
+    setToDate("");
     setTime("");
   };
 
@@ -130,18 +154,40 @@ const AvailabilityPage = () => {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Send Request</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Date (YYYY-MM-DD)"
-              value={date}
-              onChangeText={setDate}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Time (HH:MM)"
-              value={time}
-              onChangeText={setTime}
-            />
+
+            {/* From Date */}
+            <TouchableOpacity onPress={() => showDatePicker("from")}>
+              <TextInput
+                label="From Date"
+                value={fromDate}
+                editable={false}
+                style={styles.input}
+                right={<TextInput.Icon name="calendar" />}
+              />
+            </TouchableOpacity>
+
+            {/* To Date */}
+            <TouchableOpacity onPress={() => showDatePicker("to")}>
+              <TextInput
+                label="To Date"
+                value={toDate}
+                editable={false}
+                style={styles.input}
+                right={<TextInput.Icon name="calendar" />}
+              />
+            </TouchableOpacity>
+
+            {/* Time */}
+            <TouchableOpacity onPress={showTimePicker}>
+              <TextInput
+                label="Time"
+                value={time}
+                editable={false}
+                style={styles.input}
+                right={<TextInput.Icon name="clock" />}
+              />
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.sendButton} onPress={handleRequest}>
               <Text style={styles.sendButtonText}>Send Request</Text>
             </TouchableOpacity>
@@ -154,6 +200,22 @@ const AvailabilityPage = () => {
           </View>
         </View>
       </Modal>
+
+      {/* Date Picker */}
+      <DateTimePickerModal
+        isVisible={isDatePickerVisible}
+        mode="date"
+        onConfirm={handleDateConfirm}
+        onCancel={hideDatePicker}
+      />
+
+      {/* Time Picker */}
+      <DateTimePickerModal
+        isVisible={isTimePickerVisible}
+        mode="time"
+        onConfirm={handleTimeConfirm}
+        onCancel={hideTimePicker}
+      />
 
       {/* Success Modal */}
       <Modal
@@ -265,10 +327,7 @@ const styles = StyleSheet.create({
   input: {
     backgroundColor: "#f7f7ff",
     borderRadius: 8,
-    padding: 12,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
   },
   sendButton: {
     backgroundColor: "#545e75",
