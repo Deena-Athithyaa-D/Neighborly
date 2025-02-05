@@ -103,6 +103,11 @@ export default function App() {
           options={{ headerShown: false }}
         />
         <Stack.Screen
+          name="Profile"
+          component={ProfileForm}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
           name="Communities"
           component={Communities}
           options={{ headerShown: true }}
