@@ -15,6 +15,7 @@ class Profile(models.Model):
     email = models.EmailField(unique=True)
     name = models.CharField(max_length=50)
     age = models.IntegerField()
+    pno = models.CharField(max_length=20)
     profession = models.CharField(max_length=50)
     user_code = models.CharField(max_length=50)
     
@@ -25,12 +26,21 @@ class Community(models.Model):
     location = models.CharField(max_length=100)
     latitude = models.CharField(max_length=50)
     longtitude = models.CharField()
+
+class JoinRequest(models.Model):
     
+    admin_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name="admin")
+    member_id = models.ForeignKey(User, on_delete=models.CASCADE, related_name="member")
+    comm_id = models.ForeignKey(Community, on_delete=models.CASCADE)
+    accepted = models.IntegerField(default=1)
+    
+
 class Join(models.Model):
     
     comm_id = models.ForeignKey(Community, on_delete=models.CASCADE)
     user_id = models.ForeignKey(User, on_delete=models.CASCADE)
     referral_code = models.CharField(max_length=50)
+    is_admin = models.IntegerField(default=0)
     
 class Posts(models.Model):
     
