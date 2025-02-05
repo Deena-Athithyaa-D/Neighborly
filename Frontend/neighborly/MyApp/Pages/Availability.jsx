@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Text, StyleSheet, Image, TouchableOpacity, Modal, Alert } from "react-native";
 import { Menu, TextInput } from "react-native-paper";
 import DateTimePickerModal from "react-native-modal-datetime-picker";
-
+import RequestBtn from "./RequestBtn";
 const AvailabilityPage = () => {
   const today = new Date();
   const formattedDate = today.toISOString().split("T")[0];
@@ -237,6 +237,7 @@ const AvailabilityPage = () => {
           </View>
         </View>
       </Modal>
+      <RequestBtn customStyle={styles.requestButton} />
     </View>
   );
 };
@@ -357,6 +358,12 @@ const styles = StyleSheet.create({
     color: "#545e75",
     textAlign: "center",
     marginBottom: 20,
+  },
+  requestButton: {
+    position: "absolute",
+    bottom: 20, // Stick to bottom
+    right: 20, // Stick to right
+    zIndex: 10, // Ensure it stays above other components
   },
 });
 
