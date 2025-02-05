@@ -14,6 +14,7 @@ import RequestForUser from "./Pages/RequestForUser";
 import PublicRequests from "./Pages/PublicRequests";
 import Ocupation from "./Pages/Ocupation";
 import JointRequest from "./Pages/JointRequest";
+import ProfileForm from "./Pages/ProfileForm";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -109,6 +110,11 @@ export default function App() {
         <Stack.Screen
           name="JointRequest"
           component={JointRequest}
+          options={{ headerShown: true }}
+        />
+        <Stack.Screen
+          name="ProfileForm"
+          component={ProfileForm}
           options={{ headerShown: true }}
         />
         <Stack.Screen

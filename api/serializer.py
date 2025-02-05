@@ -1,5 +1,10 @@
 from rest_framework import serializers
-from .models import User,Community,Join,Posts,Offers,Requests
+from .models import User,Community,Join,Posts,Offers,Requests,Profile,JoinRequest
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = '__all__'
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
@@ -29,4 +34,9 @@ class OffersSerializer(serializers.ModelSerializer):
 class RequestsSerializer(serializers.ModelSerializer):
     class Meta:
         model = Requests
+        fields = '__all__'
+        
+class JoinRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = JoinRequest
         fields = '__all__'

@@ -8,7 +8,7 @@ export default function Auth({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Welcome to P2P Mart</Text>
+      <Text style={styles.title}>Welcome to Neighbourly</Text>
       <Text style={styles.subtitle}>Sign in to continue</Text>
 
       <TouchableOpacity onPress={handleButtonPress} style={styles.button}>
