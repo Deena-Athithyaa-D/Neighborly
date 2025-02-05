@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import * as ImagePicker from "expo-image-picker"; // For image upload
 import Icon from "react-native-vector-icons/MaterialIcons";
+import RequestBtn from "./RequestBtn";
 // import Noaimge from "../assets/noImage.png";
 const AvailabilityUpload = () => {
   const [name, setName] = useState("");

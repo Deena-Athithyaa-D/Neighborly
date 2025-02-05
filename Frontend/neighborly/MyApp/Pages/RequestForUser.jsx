@@ -9,7 +9,7 @@ import {
   Alert,
   TextInput,
 } from "react-native";
-
+import RequestBtn from "./RequestBtn";
 const RequestForUser = () => {
   const today = new Date();
   const formattedDate = today.toISOString().split("T")[0];
@@ -169,6 +169,7 @@ const RequestForUser = () => {
           </View>
         </View>
       </Modal>
+      <RequestBtn customStyle={styles.requestButton} />
     </View>
   );
 };
@@ -258,6 +259,12 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 5,
     alignItems: "center",
+  },
+  requestButton: {
+    position: "absolute",
+    bottom: 20, // Stick to bottom
+    right: 20, // Stick to right
+    zIndex: 10, // Ensure it stays above other components
   },
 });
 
