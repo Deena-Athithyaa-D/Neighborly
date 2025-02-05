@@ -10,6 +10,11 @@ import Communities from "./Pages/Communities";
 import Home from "./Pages/Home";
 import Availability from "./Pages/Availability";
 import AvailabilityUpload from "./Pages/AvailabilityUpload";
+import RequestForUser from "./Pages/RequestForUser";
+import PublicRequests from "./Pages/PublicRequests";
+import Ocupation from "./Pages/Ocupation";
+import JointRequest from "./Pages/JointRequest";
+import ProfileForm from "./Pages/ProfileForm";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -20,7 +25,10 @@ function BottomTabs({ navigation }) {
       screenOptions={{
         headerShown: true,
         headerLeft: () => (
-          <TouchableOpacity onPress={() => navigation.navigate("Communities")} style={{ marginLeft: 15 }}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Communities")}
+            style={{ marginLeft: 15 }}
+          >
             <Icon name="arrow-back" size={24} color="#6C63FF" />
           </TouchableOpacity>
         ),
@@ -30,42 +38,54 @@ function BottomTabs({ navigation }) {
         name="Home"
         component={Home}
         options={{
-          tabBarIcon: ({ color }) => <Icon name="home" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Icon name="home" size={24} color={color} />
+          ),
         }}
       />
       <Tab.Screen
         name="Availability"
         component={Availability}
         options={{
-          tabBarIcon: ({ color }) => <Icon name="event-available" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Icon name="event-available" size={24} color={color} />
+          ),
         }}
       />
       <Tab.Screen
         name="AvailabilityUpload"
         component={AvailabilityUpload}
         options={{
-          tabBarIcon: ({ color }) => <Icon name="upload" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Icon name="upload" size={24} color={color} />
+          ),
         }}
       />
       <Tab.Screen
-        name="FuturePage1"
-        component={PlaceholderScreen}
+        name="RequestForUser"
+        component={RequestForUser}
         options={{
-          tabBarIcon: ({ color }) => <Icon name="star" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Icon name="star" size={24} color={color} />
+          ),
         }}
       />
       <Tab.Screen
-        name="FuturePage2"
-        component={PlaceholderScreen}
+        name="PublicRequests"
+        component={PublicRequests}
         options={{
-          tabBarIcon: ({ color }) => <Icon name="settings" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Icon name="settings" size={24} color={color} />
+          ),
         }}
       />
       <Tab.Screen
-        name="FuturePage3"
-        component={PlaceholderScreen}
+        name="Ocupation"
+        component={Ocupation}
         options={{
-          tabBarIcon: ({ color }) => <Icon name="person" size={24} color={color} />,
+          tabBarIcon: ({ color }) => (
+            <Icon name="person" size={24} color={color} />
+          ),
         }}
       />
     </Tab.Navigator>
@@ -85,6 +105,16 @@ export default function App() {
         <Stack.Screen
           name="Communities"
           component={Communities}
+          options={{ headerShown: true }}
+        />
+        <Stack.Screen
+          name="JointRequest"
+          component={JointRequest}
+          options={{ headerShown: true }}
+        />
+        <Stack.Screen
+          name="ProfileForm"
+          component={ProfileForm}
           options={{ headerShown: true }}
         />
         <Stack.Screen

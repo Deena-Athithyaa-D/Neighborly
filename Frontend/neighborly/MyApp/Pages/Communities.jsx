@@ -47,6 +47,7 @@ export default function Communities() {
       }
     }, [])
   );
+  
 
   const handleSelect = (id, name, latitude, longitude) => {
     setSelectedId(id);
