@@ -148,18 +148,6 @@ const Home = () => {
       </TouchableOpacity>
 
       {/* Go to Availability Button */}
-      <TouchableOpacity
-        style={styles.availabilityButton}
-        onPress={() => navigation.navigate("ProfileForm")} // Navigate to AvailabilityPage
-      >
-        <Text style={styles.availabilityButtonText}>Go to Availability</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.availabilityButton}
-        onPress={() => navigation.navigate("AvailabilityUpload")} // Navigate to AvailabilityPage
-      >
-        <Text style={styles.availabilityButtonText}>Go to creation of A</Text>
-      </TouchableOpacity>
 
       {/* User Posts Section */}
       <View style={styles.postsContainer}>
