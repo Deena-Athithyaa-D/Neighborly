@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Image } from "react-native";
 
 export default function Auth({ navigation }) {
   const handleButtonPress = () => {
-    navigation.replace("Communities"); // Navigates to Communities page
+    navigation.replace("Profile"); // Navigates to Communities page
   };
 
   return (
