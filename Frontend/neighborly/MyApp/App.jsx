@@ -12,6 +12,7 @@ import Availability from "./Pages/Availability";
 import AvailabilityUpload from "./Pages/AvailabilityUpload";
 import RequestForUser from "./Pages/RequestForUser";
 import PublicRequests from "./Pages/PublicRequests";
+import Ocupation from "./Pages/Ocupation";
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -77,8 +78,8 @@ function BottomTabs({ navigation }) {
         }}
       />
       <Tab.Screen
-        name="FuturePage3"
-        component={PlaceholderScreen}
+        name="Ocupation"
+        component={Ocupation}
         options={{
           tabBarIcon: ({ color }) => (
             <Icon name="person" size={24} color={color} />
