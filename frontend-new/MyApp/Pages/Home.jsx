@@ -159,7 +159,7 @@ const Home = () => {
           showsVerticalScrollIndicator={false}
         />
       </View>
-      <RequestBtn customStyle={styles.requestButton} />
+     
     </View>
   );
 };
