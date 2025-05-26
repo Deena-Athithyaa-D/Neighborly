@@ -7,6 +7,7 @@ import Icon from "react-native-vector-icons/MaterialIcons";
 import Home from "./Pages/Home";
 import Communities from "./Pages/Communities";
 import JoinCommunities from "./Pages/JoinCommunities";
+import ExchangeHub from "./Pages/ExchangeHub";
 
 import { View, Text } from "react-native";
 
@@ -48,8 +49,9 @@ function TabNavigator() {
       })}
     >
       <Tab.Screen name="Home" component={Home} />
-      <Tab.Screen name="Explore" component={PlaceholderScreen} />
+      <Tab.Screen name="Exchange" component={ExchangeHub} />
       <Tab.Screen name="Profile" component={PlaceholderScreen} />
+      
     </Tab.Navigator>
   );
 }
