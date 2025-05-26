@@ -7,16 +7,17 @@ import {
   StyleSheet,
   View,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, Callout } from "react-native-maps";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
+import { MaterialIcons } from "@expo/vector-icons";
 
-// Generate mock communities nearby user
+// Utility: Generate random points within ~2km radius
 const generateNearbyCommunities = (userLat, userLng, count = 3) => {
   const radiusInMeters = 2000;
   const earthRadius = 6378137;
+
   const communities = [];
 
   for (let i = 0; i < count; i++) {
@@ -25,14 +26,15 @@ const generateNearbyCommunities = (userLat, userLng, count = 3) => {
 
     const deltaLat = (distance * Math.cos(angle)) / earthRadius;
     const deltaLng =
-      (distance * Math.sin(angle)) / (earthRadius * Math.cos((userLat * Math.PI) / 180));
+      (distance * Math.sin(angle)) /
+      (earthRadius * Math.cos((userLat * Math.PI) / 180));
 
     const newLat = userLat + (deltaLat * 180) / Math.PI;
     const newLng = userLng + (deltaLng * 180) / Math.PI;
 
     communities.push({
       id: `${i + 1}`,
-      name: `Community ${String.fromCharCode(65 + i)}`,
+      name: `Community ${String.fromCharCode(65 + i)}`, // A, B, C
       latitude: newLat,
       longitude: newLng,
     });
@@ -43,36 +45,34 @@ const generateNearbyCommunities = (userLat, userLng, count = 3) => {
 
 export default function JoinCommunities() {
   const [selectedId, setSelectedId] = useState(null);
-  const [selectedTitle, setSelectedTitle] = useState("Join a Community Near You");
+  const [selectedTitle, setSelectedTitle] = useState(
+    "Join a Community Near You"
+  );
+  const [refresh, setRefresh] = useState(0);
   const [userLocation, setUserLocation] = useState(null);
   const [communityData, setCommunityData] = useState([]);
-  const [loading, setLoading] = useState(true);
   const mapRef = useRef(null);
   const navigation = useNavigation();
 
   const getUserLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Location permission denied.");
-        setLoading(false);
-        return;
-      }
-
-      const location = await Location.getCurrentPositionAsync({});
-      const userLoc = {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
-
-      setUserLocation(userLoc);
-      const generated = generateNearbyCommunities(userLoc.latitude, userLoc.longitude, 3);
-      setCommunityData(generated);
-      setLoading(false);
-    } catch (err) {
-      Alert.alert("Error fetching location", err.message);
-      setLoading(false);
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission to access location was denied");
+      return;
     }
+
+    let location = await Location.getCurrentPositionAsync({});
+    const userLoc = {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+    };
+    setUserLocation(userLoc);
+
+    const generated = generateNearbyCommunities(
+      userLoc.latitude,
+      userLoc.longitude
+    );
+    setCommunityData(generated);
   };
 
   const focusOnUserLocation = () => {
@@ -100,6 +100,7 @@ export default function JoinCommunities() {
     useCallback(() => {
       setSelectedId(null);
       setSelectedTitle("Join a Community Near You");
+      setRefresh((prev) => prev + 1);
     }, [])
   );
 
@@ -125,15 +126,6 @@ export default function JoinCommunities() {
       <Text style={styles.itemText}>{item.name}</Text>
     </TouchableOpacity>
   );
-
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6C63FF" />
-        <Text>Loading map and nearby communities...</Text>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -163,25 +155,16 @@ export default function JoinCommunities() {
                 longitude: community.longitude,
               }}
               onPress={() => handleSelect(community.id, community.name)}
-              anchor={{ x: 0.5, y: 1 }}
             >
-              <View style={styles.markerContainer}>
-                <View style={styles.markerLabel}>
-                  <Text style={styles.markerLabelText}>{community.name}</Text>
-                </View>
-                <View style={styles.markerPin}>
-                  <View style={styles.markerPinInner} />
-                </View>
-              </View>
+              <MaterialIcons name="maps-home-work" size={36} color="#6C63FF" />
               <Callout tooltip>
-                <View style={styles.calloutContainer}>
-                  <Text style={styles.calloutTitle}>{community.name}</Text>
-                  <TouchableOpacity
-                    style={styles.calloutButton}
-                    onPress={() => handleSelect(community.id, community.name)}
-                  >
-                    <Text style={styles.calloutButtonText}>Join Community</Text>
-                  </TouchableOpacity>
+                <View style={styles.markerContainer}>
+                  <Text style={styles.markerLabelText}>{community.name}</Text>
+                  <MaterialIcons
+                    name="maps-home-work"
+                    size={36}
+                    color="#6C63FF"
+                  />
                 </View>
               </Callout>
             </Marker>
@@ -207,17 +190,23 @@ export default function JoinCommunities() {
         data={communityData}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
+        extraData={refresh}
         style={styles.list}
         contentContainerStyle={{ paddingBottom: 20 }}
-        ListEmptyComponent={<Text style={{ textAlign: "center" }}>No communities found.</Text>}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#f0f4ff" },
-  mapContainer: { height: "40%", width: "100%" },
+  container: {
+    flex: 1,
+    backgroundColor: "#f0f4ff",
+  },
+  mapContainer: {
+    height: "40%",
+    width: "100%",
+  },
   mapTitleContainer: {
     position: "absolute",
     top: 10,
@@ -225,9 +214,13 @@ const styles = StyleSheet.create({
     right: 0,
     alignItems: "center",
     zIndex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    backgroundColor: "rgba(255, 255, 255, 0.85)",
     padding: 10,
-    borderRadius: 5,
+    borderRadius: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
   mapTitle: {
     fontSize: 18,
@@ -244,87 +237,45 @@ const styles = StyleSheet.create({
   item: {
     padding: 15,
     marginVertical: 10,
-    borderRadius: 5,
-    width: "80%",
+    borderRadius: 8,
+    width: "85%",
     alignSelf: "center",
     alignItems: "center",
+    justifyContent: "center",
     backgroundColor: "#fff",
     shadowColor: "#6C63FF",
     shadowOpacity: 0.15,
     shadowRadius: 5,
     shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
   itemText: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#4a4a8c",
   },
-  markerContainer: {
-    alignItems: "center",
-    justifyContent: "flex-end",
-    height: 60,
-  },
-  markerLabel: {
-    backgroundColor: "white",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#6C63FF",
-    marginBottom: 4,
-    zIndex: 1,
-  },
   markerLabelText: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#6C63FF",
+    color: "#333",
   },
-  markerPin: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#6C63FF",
+  iconWrapper: {
+    backgroundColor: "#fff",
+    borderRadius: 18,
+    padding: 2,
     alignItems: "center",
     justifyContent: "center",
-  },
-  markerPinInner: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: "white",
+    elevation: 5,
   },
   calloutContainer: {
     backgroundColor: "white",
-    padding: 12,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
     borderRadius: 8,
-    width: 180,
     elevation: 4,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
-  },
-  calloutTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 8,
-    color: "#4a4a8c",
-    textAlign: "center",
-  },
-  calloutButton: {
-    backgroundColor: "#6C63FF",
-    padding: 8,
-    borderRadius: 6,
-    alignItems: "center",
-  },
-  calloutButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 14,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
   },
 });
