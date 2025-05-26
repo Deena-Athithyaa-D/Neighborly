@@ -8,7 +8,8 @@ import {
   Animated, 
   Easing,
   Image,
-  RefreshControl
+  RefreshControl,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -19,30 +20,54 @@ const Activity = () => {
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
 
-  // Dummy data matching your models
+  // Community members data
+  const communityMembers = {
+    '2': {
+      name: 'Sarah Smith',
+      avatar: 'https://randomuser.me/api/portraits/women/1.jpg',
+      profession: 'Teacher'
+    },
+    '3': {
+      name: 'Mike Johnson',
+      avatar: 'https://randomuser.me/api/portraits/men/2.jpg',
+      profession: 'Engineer'
+    },
+    '5': {
+      name: 'Robert Brown',
+      avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
+      profession: 'Designer'
+    },
+    '7': {
+      name: 'Lisa Taylor',
+      avatar: 'https://randomuser.me/api/portraits/women/3.jpg',
+      profession: 'Handyman'
+    },
+    '9': {
+      name: 'Michael Clark',
+      avatar: 'https://randomuser.me/api/portraits/men/6.jpg',
+      profession: 'Plumber'
+    },
+    '10': {
+      name: 'Jennifer Lewis',
+      avatar: 'https://randomuser.me/api/portraits/women/4.jpg',
+      profession: 'Nurse'
+    }
+  };
+
+  // Dummy data - showing community responses to your posts
   const [offeringsData, setOfferingsData] = useState([
     {
       id: '1',
       type: 'product',
       title: 'Lawn Mower',
       description: 'Available for community use on weekends',
-      user: {
-        id: '1',
-        name: 'John Doe',
-        avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
-        profession: 'Gardener'
-      },
       interestedUsers: [
         {
           id: '2',
-          name: 'Sarah Smith',
-          avatar: 'https://randomuser.me/api/portraits/women/1.jpg',
           message: 'Need it for my backyard this weekend'
         },
         {
           id: '3',
-          name: 'Mike Johnson',
-          avatar: 'https://randomuser.me/api/portraits/men/2.jpg',
           message: 'Can I borrow it next week?'
         }
       ]
@@ -52,17 +77,9 @@ const Activity = () => {
       type: 'service',
       title: 'Babysitting',
       description: 'Available on weekday evenings',
-      user: {
-        id: '4',
-        name: 'Emily Davis',
-        avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-        profession: 'Teacher'
-      },
       interestedUsers: [
         {
           id: '5',
-          name: 'Robert Brown',
-          avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
           message: 'Need someone this Friday evening'
         }
       ]
@@ -75,17 +92,9 @@ const Activity = () => {
       type: 'product',
       title: 'Power Drill',
       description: 'Need for a small home project',
-      user: {
-        id: '6',
-        name: 'David Wilson',
-        avatar: 'https://randomuser.me/api/portraits/men/4.jpg',
-        profession: 'Engineer'
-      },
       interestedUsers: [
         {
           id: '7',
-          name: 'Lisa Taylor',
-          avatar: 'https://randomuser.me/api/portraits/women/3.jpg',
           message: 'I have one you can borrow'
         }
       ]
@@ -95,23 +104,13 @@ const Activity = () => {
       type: 'service',
       title: 'Plumbing Help',
       description: 'Need help fixing a leaky faucet',
-      user: {
-        id: '8',
-        name: 'James Miller',
-        avatar: 'https://randomuser.me/api/portraits/men/5.jpg',
-        profession: 'Accountant'
-      },
       interestedUsers: [
         {
           id: '9',
-          name: 'Michael Clark',
-          avatar: 'https://randomuser.me/api/portraits/men/6.jpg',
           message: 'I can help with that'
         },
         {
           id: '10',
-          name: 'Jennifer Lewis',
-          avatar: 'https://randomuser.me/api/portraits/women/4.jpg',
           message: 'My husband is a plumber, can help'
         }
       ]
@@ -119,7 +118,6 @@ const Activity = () => {
   ]);
 
   useEffect(() => {
-    // Animation when component mounts
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -137,7 +135,6 @@ const Activity = () => {
 
   const onRefresh = () => {
     setRefreshing(true);
-    // Simulate refresh
     setTimeout(() => {
       setRefreshing(false);
     }, 1000);
@@ -150,33 +147,62 @@ const Activity = () => {
     }));
   };
 
-  const renderInterestedUsers = (users) => {
-    return users.map((user, index) => (
-      <Animated.View 
-        key={user.id}
-        style={[
-          styles.interestedUserCard,
-          {
-            opacity: fadeAnim,
-            transform: [{
-              translateX: slideAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, (index % 2 === 0 ? -10 : 10)]
-              })
-            }]
-          }
-        ]}
-      >
-        <Image source={{ uri: user.avatar }} style={styles.userAvatar} />
-        <View style={styles.userInfo}>
-          <Text style={styles.userName}>{user.name}</Text>
-          <Text style={styles.userMessage}>{user.message}</Text>
-        </View>
-        <TouchableOpacity style={styles.contactButton}>
-          <Ionicons name="chatbubble-ellipses" size={20} color="#4CAF50" />
-        </TouchableOpacity>
-      </Animated.View>
-    ));
+  const handleAccept = (itemId, userId) => {
+    const user = communityMembers[userId];
+    Alert.alert('Accepted', `You've accepted ${user.name}'s response`);
+    // Here you would update your backend
+  };
+
+  const handleDecline = (itemId, userId) => {
+    const user = communityMembers[userId];
+    Alert.alert('Declined', `You've declined ${user.name}'s response`);
+    // Here you would update your backend
+  };
+
+  const renderInterestedUsers = (users, itemId) => {
+    return users.map((user, index) => {
+      const userDetails = communityMembers[user.id];
+      return (
+        <Animated.View 
+          key={user.id}
+          style={[
+            styles.interestedUserCard,
+            {
+              opacity: fadeAnim,
+              transform: [{
+                translateX: slideAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, (index % 2 === 0 ? -10 : 10)]
+                })
+              }]
+            }
+          ]}
+        >
+          <View style={styles.userInfoContainer}>
+            <Image source={{ uri: userDetails.avatar }} style={styles.userAvatar} />
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{userDetails.name}</Text>
+              <Text style={styles.userProfession}>{userDetails.profession}</Text>
+              <Text style={styles.userMessage}>{user.message}</Text>
+            </View>
+          </View>
+          <View style={styles.actionButtons}>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.acceptButton]}
+              onPress={() => handleAccept(itemId, user.id)}
+            >
+              <Text style={styles.actionButtonText}>Accept</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.actionButton, styles.declineButton]}
+              onPress={() => handleDecline(itemId, user.id)}
+            >
+              <Text style={styles.actionButtonText}>Decline</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      );
+    });
   };
 
   const renderItem = ({ item }) => (
@@ -191,10 +217,10 @@ const Activity = () => {
     >
       <TouchableOpacity onPress={() => toggleExpand(item.id)}>
         <View style={styles.cardHeader}>
-          <Image source={{ uri: item.user.avatar }} style={styles.avatar} />
-          <View style={styles.userDetails}>
-            <Text style={styles.userName}>{item.user.name}</Text>
-            <Text style={styles.userProfession}>{item.user.profession}</Text>
+          <View style={styles.cardContent}>
+            <Text style={styles.typeBadge}>{item.type}</Text>
+            <Text style={styles.title}>{item.title}</Text>
+            <Text style={styles.description}>{item.description}</Text>
           </View>
           <Ionicons 
             name={expandedItems[item.id] ? "chevron-up" : "chevron-down"} 
@@ -202,20 +228,14 @@ const Activity = () => {
             color="#666" 
           />
         </View>
-        
-        <View style={styles.cardContent}>
-          <Text style={styles.typeBadge}>{item.type}</Text>
-          <Text style={styles.title}>{item.title}</Text>
-          <Text style={styles.description}>{item.description}</Text>
-        </View>
       </TouchableOpacity>
 
       {expandedItems[item.id] && (
         <View style={styles.interestedUsersContainer}>
           <Text style={styles.interestedTitle}>
-            {item.interestedUsers.length} {item.interestedUsers.length === 1 ? 'person is' : 'people are'} interested
+            {item.interestedUsers.length} {item.interestedUsers.length === 1 ? 'response' : 'responses'}
           </Text>
-          {renderInterestedUsers(item.interestedUsers)}
+          {renderInterestedUsers(item.interestedUsers, item.id)}
         </View>
       )}
     </Animated.View>
@@ -225,7 +245,7 @@ const Activity = () => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Community Activity</Text>
+        <Text style={styles.headerTitle}>Community Responses</Text>
       </View>
 
       {/* Tabs */}
@@ -235,7 +255,7 @@ const Activity = () => {
           onPress={() => setActiveTab('offerings')}
         >
           <Text style={[styles.tabText, activeTab === 'offerings' && styles.activeTabText]}>
-            Offerings
+            Your Offerings
           </Text>
         </TouchableOpacity>
         <TouchableOpacity 
@@ -243,7 +263,7 @@ const Activity = () => {
           onPress={() => setActiveTab('requests')}
         >
           <Text style={[styles.tabText, activeTab === 'requests' && styles.activeTabText]}>
-            Requests
+            Your Requests
           </Text>
         </TouchableOpacity>
       </View>
@@ -265,7 +285,7 @@ const Activity = () => {
         }
         ListEmptyComponent={
           <Text style={styles.emptyText}>
-            No {activeTab} found in your community
+            No responses to your {activeTab} yet
           </Text>
         }
       />
@@ -342,28 +362,10 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 10,
-  },
-  userDetails: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#343a40',
-  },
-  userProfession: {
-    fontSize: 14,
-    color: '#6c757d',
+    justifyContent: 'space-between',
   },
   cardContent: {
-    marginTop: 10,
+    flex: 1,
   },
   typeBadge: {
     alignSelf: 'flex-start',
@@ -400,28 +402,60 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   interestedUserCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#f8f9fa',
     borderRadius: 10,
-    padding: 10,
+    padding: 15,
+    marginBottom: 10,
+  },
+  userInfoContainer: {
+    flexDirection: 'row',
     marginBottom: 10,
   },
   userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     marginRight: 10,
   },
   userInfo: {
     flex: 1,
   },
-  userMessage: {
-    fontSize: 13,
-    color: '#6c757d',
+  userName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#343a40',
+    marginBottom: 2,
   },
-  contactButton: {
-    padding: 8,
+  userProfession: {
+    fontSize: 14,
+    color: '#6c757d',
+    marginBottom: 5,
+  },
+  userMessage: {
+    fontSize: 14,
+    color: '#495057',
+    lineHeight: 20,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 10,
+  },
+  actionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+    marginLeft: 10,
+  },
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+  },
+  declineButton: {
+    backgroundColor: '#f44336',
+  },
+  actionButtonText: {
+    color: 'white',
+    fontWeight: '600',
   },
   emptyText: {
     textAlign: 'center',
