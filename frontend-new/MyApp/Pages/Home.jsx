@@ -8,36 +8,59 @@ import {
   StyleSheet,
   Text,
   FlatList,
+  ScrollView,
+  Modal,
 } from "react-native";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { useNavigation } from "@react-navigation/native"; // Import useNavigation
-import RequestBtn from "./RequestBtn";
+import * as ImagePicker from "expo-image-picker";
+import Comments from "../Components/Comments";
+
 const Home = () => {
-  const navigation = useNavigation(); // Hook for navigation
   const [isSearching, setIsSearching] = useState(false);
   const [searchText, setSearchText] = useState("");
   const [postText, setPostText] = useState("");
-  const searchPosition = useRef(new Animated.Value(-1000)).current; // Start off-screen to the left
-  const logoPosition = useRef(new Animated.Value(0)).current; // Start at the original position
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedPost, setSelectedPost] = useState(null);
+  const [showComments, setShowComments] = useState(false);
+  const searchPosition = useRef(new Animated.Value(-1000)).current;
+  const logoPosition = useRef(new Animated.Value(0)).current;
   const searchInputRef = useRef(null);
 
-  const userArray = [
-    { id: 1, user: "Arjun", caption: "He is cool" },
-    { id: 2, user: "Sachive", caption: "He is not cool" },
-    { id: 3, user: "Deena", caption: "He is cool somewhat" },
-  ];
+  const [communityPosts, setCommunityPosts] = useState([
+    {
+      id: 1,
+      user: "Arjun",
+      caption: "Just picked up groceries from the supermarket",
+      hasImage: false,
+      likes: 12,
+      isLiked: false,
+      comments: 3,
+      time: "2 hours ago",
+    },
+    {
+      id: 2,
+      user: "Sachin",
+      caption: "Check out this cool place I found!",
+      hasImage: true,
+      imageUri: "https://picsum.photos/500/300",
+      likes: 45,
+      isLiked: true,
+      comments: 8,
+      time: "5 hours ago",
+    },
+  ]);
 
   const toggleSearch = () => {
     const toValue = !isSearching;
 
     Animated.parallel([
       Animated.timing(searchPosition, {
-        toValue: toValue ? 0 : -1000, // Slide search bar in from the left
+        toValue: toValue ? 0 : -1000,
         duration: 300,
         useNativeDriver: false,
       }),
       Animated.timing(logoPosition, {
-        toValue: toValue ? -1000 : 0, // Slide logo out to the left
+        toValue: toValue ? -1000 : 0,
         duration: 300,
         useNativeDriver: false,
       }),
@@ -53,113 +76,216 @@ const Home = () => {
   };
 
   const handlePost = () => {
-    console.log("Posting:", postText);
-    setPostText(""); // Clear the input after posting
+    if (!postText.trim() && !selectedImage) return;
+
+    const newPost = {
+      id: Math.random().toString(),
+      user: "You",
+      caption: postText,
+      hasImage: !!selectedImage,
+      imageUri: selectedImage?.uri,
+      likes: 0,
+      isLiked: false,
+      comments: 0,
+      time: "Just now",
+    };
+
+    setCommunityPosts([newPost, ...communityPosts]);
+    setPostText("");
+    setSelectedImage(null);
+  };
+
+  const handleSelectImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      alert("Sorry, we need camera roll permissions to make this work!");
+      return;
+    }
+
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 1,
+    });
+
+    if (!result.cancelled) {
+      setSelectedImage(result);
+    }
+  };
+
+  const toggleLike = (postId) => {
+    setCommunityPosts(
+      communityPosts.map((post) => {
+        if (post.id === postId) {
+          return {
+            ...post,
+            likes: post.isLiked ? post.likes - 1 : post.likes + 1,
+            isLiked: !post.isLiked,
+          };
+        }
+        return post;
+      })
+    );
+  };
+
+  const openComments = (post) => {
+    setSelectedPost(post);
+    setShowComments(true);
+  };
+
+  const addComment = (commentText) => {
+    if (!commentText.trim()) return;
+
+    const updatedPosts = communityPosts.map((post) => {
+      if (post.id === selectedPost.id) {
+        return {
+          ...post,
+          comments: post.comments + 1,
+        };
+      }
+      return post;
+    });
+
+    setCommunityPosts(updatedPosts);
+    setShowComments(false);
   };
 
   const renderItem = ({ item }) => (
     <View style={styles.postCard}>
-      <Image
-        source={require("../assets/profile_pic.png")} // Use profile picture
-        style={styles.postProfileImage}
-      />
-      <View style={styles.postContent}>
-        <Text style={styles.postUser}>{item.user}</Text>
-        <Text style={styles.postCaption}>{item.caption}</Text>
+      <View style={styles.postHeader}>
+        <Image
+          source={require("../assets/placeholder.png")}
+          style={styles.postProfileImage}
+        />
+        <View style={styles.postUserInfo}>
+          <Text style={styles.postUser}>{item.user}</Text>
+          <Text style={styles.postTime}>{item.time}</Text>
+        </View>
+      </View>
+
+      <Text style={styles.postCaption}>{item.caption}</Text>
+
+      {item.hasImage && (
+        <Image source={{ uri: item.imageUri }} style={styles.postImage} />
+      )}
+
+      <View style={styles.postStats}>
+        <Text style={styles.postStatText}>{item.likes} likes</Text>
+        <Text style={styles.postStatText}>{item.comments} comments</Text>
+      </View>
+
+      <View style={styles.postActions}>
+        <TouchableOpacity
+          style={styles.postActionButton}
+          onPress={() => toggleLike(item.id)}
+        >
+          <Icon
+            name={item.isLiked ? "thumb-up" : "thumb-up-off-alt"}
+            size={20}
+            color={item.isLiked ? "#6b98d3" : "#666"}
+          />
+          <Text
+            style={[
+              styles.postActionText,
+              { color: item.isLiked ? "#6b98d3" : "#666" },
+            ]}
+          >
+            Like
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.postActionButton}
+          onPress={() => openComments(item)}
+        >
+          <Icon name="chat-bubble-outline" size={20} color="#666" />
+          <Text style={styles.postActionText}>Comment</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.postActionButton}>
+          <Icon name="share" size={20} color="#666" />
+          <Text style={styles.postActionText}>Share</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
 
   return (
     <View style={styles.container}>
-      {/* Header Section */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerContent}>
-          {/* Logo on the left */}
-          <Animated.View
-            style={[
-              styles.logoContainer,
-              {
-                transform: [{ translateX: logoPosition }], // Slide logo out
-              },
-            ]}
-          >
-            <Image
-              source={require("../assets/logo.png")} // Replace with your logo path
-              style={styles.logoImage}
-              resizeMode="contain"
-            />
-          </Animated.View>
+      {/* Post Creation */}
+      <ScrollView>
+        <View style={styles.createPostContainer}>
+          <Image
+            source={require("../assets/placeholder.png")}
+            style={styles.createPostProfileImage}
+          />
 
-          {/* Search icon or back arrow on the right */}
-          <TouchableOpacity onPress={toggleSearch} style={styles.iconContainer}>
-            <Icon
-              name={isSearching ? "arrow-back" : "search"} // Show back arrow when searching
-              size={28}
-              color="white"
-            />
-          </TouchableOpacity>
-
-          {/* Search bar */}
-          <Animated.View
-            style={[
-              styles.searchContainer,
-              {
-                transform: [{ translateX: searchPosition }], // Slide search bar in
-                paddingLeft: 80, // Add padding to avoid overlap with the icon
-                paddingRight: 16, // Add padding on the right
-                marginRight: 60, // Add margin to create space for the icon
-              },
-            ]}
-          >
+          <View style={styles.postInputContainer}>
             <TextInput
-              ref={searchInputRef}
-              style={styles.searchInput}
-              placeholder="Search..."
-              value={searchText}
-              onChangeText={setSearchText}
-              onSubmitEditing={() => console.log("Search:", searchText)}
+              style={styles.postInput}
+              placeholder="What's on your mind?"
+              placeholderTextColor="#6b98d3"
+              value={postText}
+              onChangeText={setPostText}
             />
-          </Animated.View>
+          </View>
+
+          <TouchableOpacity onPress={handleSelectImage}>
+            <Icon name="photo-camera" size={24} color="#6b98d3" />
+          </TouchableOpacity>
         </View>
-      </View>
 
-      {/* Post Section */}
-      <View style={styles.postContainer}>
-        {/* Round placeholder image */}
-        <Image
-          source={require("../assets/profile_pic.png")} // Updated to profile_pic.png
-          style={styles.profileImage}
+        {selectedImage && (
+          <View style={styles.selectedImagePreview}>
+            <Image
+              source={{ uri: selectedImage.uri }}
+              style={styles.selectedImage}
+            />
+            <TouchableOpacity
+              style={styles.removeImageButton}
+              onPress={() => setSelectedImage(null)}
+            >
+              <Icon name="close" size={20} color="white" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <TouchableOpacity
+          style={[
+            styles.postButton,
+            !postText.trim() && !selectedImage && styles.disabledPostButton,
+          ]}
+          onPress={handlePost}
+          disabled={!postText.trim() && !selectedImage}
+        >
+          <Text style={styles.postButtonText}>Post</Text>
+        </TouchableOpacity>
+
+        {/* Community Posts */}
+        <View style={styles.postsContainer}>
+          <FlatList
+            data={communityPosts}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.id.toString()}
+            scrollEnabled={false}
+          />
+        </View>
+      </ScrollView>
+
+      {/* Comments Modal */}
+      <Modal
+        visible={showComments}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={() => setShowComments(false)}
+      >
+        <Comments
+          post={selectedPost}
+          onClose={() => setShowComments(false)}
+          onAddComment={addComment}
         />
-
-        {/* Multiline text input */}
-        <TextInput
-          style={styles.postInput}
-          placeholder="What's on your mind?"
-          multiline
-          value={postText}
-          onChangeText={setPostText}
-        />
-      </View>
-
-      {/* Post Button */}
-      <TouchableOpacity style={styles.postButton} onPress={handlePost}>
-        <Text style={styles.postButtonText}>Post</Text>
-      </TouchableOpacity>
-
-      {/* Go to Availability Button */}
-
-      {/* User Posts Section */}
-      <View style={styles.postsContainer}>
-        <Text style={styles.postsTitle}>Your Posts....</Text>
-        <FlatList
-          data={userArray}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id.toString()}
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
-     
+      </Modal>
     </View>
   );
 };
@@ -167,18 +293,18 @@ const Home = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f7f7ff",
+    backgroundColor: "#e6efff", // light blue background
   },
   headerContainer: {
     width: "100%",
-    height: 80, // Reduced header height
-    backgroundColor: "#545e75",
+    height: 80,
+    backgroundColor: "#6b98d3", // blue header if needed
   },
   headerContent: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: 16, // p-4 equivalent (4 * 4 = 16)
+    padding: 16,
     height: "100%",
   },
   logoContainer: {
@@ -186,14 +312,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   logoImage: {
-    width: 150, // Increased logo width
-    height: 150, // Increased logo height
+    width: 150,
+    height: 150,
   },
   iconContainer: {
     zIndex: 10,
-    marginLeft: 16, // ml-4 equivalent (4 * 4 = 16)
+    marginLeft: 16,
   },
-
   searchContainer: {
     height: "100%",
     justifyContent: "center",
@@ -203,119 +328,154 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     backgroundColor: "white",
-    borderRadius: 8, // rounded-lg equivalent
-    paddingHorizontal: 16, // px-4 equivalent (4 * 4 = 16)
-    paddingVertical: 8, // py-2 equivalent (2 * 4 = 8)
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     width: "100%",
   },
-  postContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 16,
-    marginTop: 16,
-  },
-  profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25, // Makes the image round
-    marginRight: 16, // Space between image and text input
-  },
-  postInput: {
-    flex: 1,
+  createPostContainer: {
     backgroundColor: "white",
-    borderRadius: 8,
+    borderRadius: 10,
     padding: 12,
-    fontSize: 16,
-    textAlignVertical: "top", // Ensures multiline starts from the top
-    minHeight: 80, // Reduced height of the text area
-  },
-  postButton: {
-    backgroundColor: "#545e75",
-    borderRadius: 25, // More rounded corners
-    paddingVertical: 10, // Reduced vertical padding
-    paddingHorizontal: 20, // Reduced horizontal padding
-    marginHorizontal: 16,
-    alignItems: "center",
-    alignSelf: "flex-end", // Align button to the right
-    elevation: 3, // Adds shadow on Android
-    shadowColor: "#000", // Adds shadow on iOS
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  postButtonText: {
-    color: "white",
-    fontSize: 14, // Smaller font size
-    fontWeight: "bold",
-    textTransform: "uppercase", // Uppercase text
-  },
-  availabilityButton: {
-    backgroundColor: "#6C63FF",
-    borderRadius: 25,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    marginHorizontal: 16,
-    marginTop: 16,
-    alignItems: "center",
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  availabilityButtonText: {
-    color: "white",
-    fontSize: 14,
-    fontWeight: "bold",
-    textTransform: "uppercase",
-  },
-  postsContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  postsTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 16,
-    color: "#545e75",
-  },
-  postCard: {
+    margin: 12,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 2, // Adds shadow on Android
-    shadowColor: "#000", // Adds shadow on iOS
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+    elevation: 2,
+  },
+  createPostProfileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 10,
+  },
+  postInputContainer: {
+    flex: 1,
+  },
+  postInput: {
+    backgroundColor: "#e6efff", // light blue input background
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: "#000",
+  },
+  postButton: {
+    backgroundColor: "#6b98d3", // blue button
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    marginHorizontal: 12,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  disabledPostButton: {
+    backgroundColor: "#a8b8d1",
+  },
+  postButtonText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  selectedImagePreview: {
+    backgroundColor: "white",
+    marginHorizontal: 12,
+    marginBottom: 12,
+    borderRadius: 10,
+    padding: 10,
+    position: "relative",
+  },
+  selectedImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 8,
+  },
+  removeImageButton: {
+    position: "absolute",
+    top: 20,
+    right: 20,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    borderRadius: 15,
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  postsContainer: {
+    padding: 12,
+  },
+  postCard: {
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  postHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
   },
   postProfileImage: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 16,
+    marginRight: 10,
   },
-  postContent: {
+  postUserInfo: {
     flex: 1,
   },
   postUser: {
-    fontSize: 16,
     fontWeight: "bold",
-    color: "#545e75",
+    fontSize: 16,
+    color: "#3a4a6f",
+  },
+  postTime: {
+    fontSize: 12,
+    color: "#8a9bb8",
   },
   postCaption: {
     fontSize: 14,
-    color: "#666",
-    marginTop: 4,
+    color: "#3a4a6f",
+    marginBottom: 10,
   },
-  requestButton: {
-    position: "absolute",
-    bottom: 20, // Stick to bottom
-    right: 20, // Stick to right
-    zIndex: 10, // Ensure it stays above other components
+  postImage: {
+    width: "100%",
+    height: 200,
+    borderRadius: 10,
+    marginBottom: 10,
+  },
+  postStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  postStatText: {
+    fontSize: 12,
+    color: "#6b98d3",
+  },
+  postActions: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    borderTopWidth: 1,
+    borderTopColor: "#dde6f2",
+    paddingTop: 6,
+  },
+  postActionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  postActionText: {
+    fontSize: 14,
+    color: "#666",
+    marginLeft: 6,
   },
 });
 
