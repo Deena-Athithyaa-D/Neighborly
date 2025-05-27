@@ -20,8 +20,8 @@ def main():
 
 
 if __name__ == '__main__':
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'neighborly.settings')
+    # os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'neighborly.settings')
     
-    port = os.getenv('PORT', '8000')
-    execute_from_command_line(['manage.py', 'runserver', f'0.0.0.0:{port}'])
+    # port = os.getenv('PORT', '8000')
+    # execute_from_command_line(['manage.py', 'runserver', f'0.0.0.0:{port}'])
     main()
