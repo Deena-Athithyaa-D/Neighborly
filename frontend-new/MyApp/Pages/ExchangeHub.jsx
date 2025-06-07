@@ -19,15 +19,35 @@ export default function ExchangeHub() {
 
   const [showDatePicker, setShowDatePicker] = useState({ field: '', show: false, mode: 'date' });
 
-  const req = [
-    { id: '1', name: 'John Doe', product: 'Power Drill', description: 'Need for a small home project', type: 'product' },
-    { id: '2', name: 'Sarah Smith', product: 'Ladder', description: 'Painting my living room', type: 'service' }
-  ];
+  const [req,setReq] = useState([]);
+  const [lend,setLend]=useState([]);
 
-  const lend = [
-    { id: '3', name: 'John Doe', product: 'Lawn Mower', description: 'Available for community use', type: 'product' },
-    { id: '4', name: 'John Cena', product: 'Tool Kit', description: 'Not Available for community use', type: 'service' }
-  ];
+  useEffect(()=>{
+    const fetchDetails=async()=>{
+      try{
+      const data=await fetch('https://010c-202-53-4-31.ngrok-free.app/api/get_offers/1');
+      const response=await data.json();
+      setLend(response);
+      }
+      catch(err){
+        console.log(err);
+      }
+    }
+    const fetchDetails1=async()=>{
+      try{
+        const data=await fetch('https://010c-202-53-4-31.ngrok-free.app/api/view_public_offers/1');
+        const response=await data.json();
+        setReq(response);
+      }
+      catch(err){
+        console.log(err);
+      }
+    }
+    fetchDetails();
+    fetchDetails1();
+
+  },[])
+
 
   const onProductPress = () => setActiveTab("product");
   const onServicesPress = () => setActiveTab("services");
@@ -38,10 +58,70 @@ export default function ExchangeHub() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = () => {
-    Alert.alert('Success', 'Successfully submitted');
-    setOpenModal(false);
-  };
+  const handleSubmit = async () => {
+  try {
+    // Prepare the submission data
+    const submissionData = {
+      type: formData.type,
+      title: formData.title,
+      description: formData.description,
+      actionType: subactiveTab, // 'lend' or 'request'
+    };
+
+    // Add date/time fields only for lending
+    if (subactiveTab === 'lend') {
+      submissionData.fromDate = formData.fromDate;
+      submissionData.toDate = formData.toDate;
+      submissionData.fromTime = formData.fromTime;
+      submissionData.toTime = formData.toTime;
+    }
+    const endpoint = subactiveTab === 'lend' 
+      ? 'https://010c-202-53-4-31.ngrok-free.app/api/create_offer' 
+      : 'https://010c-202-53-4-31.ngrok-free.app/api/create_request';
+    // API call
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        // Add authorization header if needed:
+        // 'Authorization': `Bearer ${yourToken}`,
+      },
+      body: JSON.stringify(submissionData),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to submit');
+    }
+
+    // Success handling
+    Alert.alert(
+      'Success', 
+      `${subactiveTab === 'lend' ? 'Lending offer' : 'Request'} submitted successfully!`,
+      [{
+        text: 'OK',
+        onPress: () => {
+          // Reset form
+          setFormData({
+            type: 'product',
+            title: '',
+            description: '',
+            fromDate: '',
+            toDate: '',
+            fromTime: '',
+            toTime: '',
+          });
+          setOpenModal(false);
+        }
+      }]
+    );
+
+  } catch (error) {
+    console.error('Submission error:', error);
+    Alert.alert('Error', error.message || 'Something went wrong');
+  }
+};
 
   const handleCancel = () => {
     Alert.alert('Cancelled', 'Successfully cancelled');
