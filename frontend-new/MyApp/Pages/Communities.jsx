@@ -4,52 +4,55 @@ import {
   FlatList,
   Text,
   TouchableOpacity,
-  StyleSheet,
   View,
   Modal,
   TextInput,
-  Button,
   Alert,
+  StyleSheet,
+  Dimensions,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, Callout } from "react-native-maps";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
-import * as Location from "expo-location"; // For real-time location
+import * as Location from "expo-location";
 
-const listData = [
-  { id: "1", name: "Community A" },
-  { id: "2", name: "Community B" },
-  { id: "3", name: "Community C" },
-  { id: "4", name: "Community D" },
-  { id: "5", name: "Community E" },
-];
+const screenHeight = Dimensions.get("window").height;
 
 export default function Communities() {
   const [selectedId, setSelectedId] = useState(null);
   const [selectedTitle, setSelectedTitle] = useState("Communities Near You");
-  const [refresh, setRefresh] = useState(0);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [communityName, setCommunityName] = useState("");
-  const [userLocation, setUserLocation] = useState(null); // Store user location object
+  const [userLocation, setUserLocation] = useState(null);
   const [communityMarker, setCommunityMarker] = useState(null);
+  const [listData, setListData] = useState([]);
   const mapRef = useRef(null);
   const navigation = useNavigation();
+  const user_id = "72ec87c9-eb03-44e7-853f-b4c774db0deb";
 
-  // Get user's real-time location
   const getUserLocation = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission to access location was denied");
-      return;
-    }
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission to access location was denied");
+        return null;
+      }
 
-    let location = await Location.getCurrentPositionAsync({});
-    setUserLocation({
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    });
+      let location = await Location.getCurrentPositionAsync({});
+      const loc = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+      setUserLocation(loc);
+      return loc;
+    } catch (err) {
+      console.error("Location error:", err);
+      return null;
+    }
   };
 
-  // Focus map on user's location & zoom in
   const focusOnUserLocation = () => {
     if (mapRef.current && userLocation) {
       mapRef.current.animateToRegion({
@@ -61,29 +64,45 @@ export default function Communities() {
     }
   };
 
-  // Called on initial load & when userLocation changes
-  useEffect(() => {
-    getUserLocation();
-  }, []);
+  const fetchCommunities = async () => {
+    try {
+      const res = await fetch(
+        `https://69df-202-53-4-31.ngrok-free.app/api/get_user_communities/${user_id}`
+      );
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const formattedData = data.map((item, index) => ({
+          id: item.id?.toString() || index.toString(),
+          name: item.comm_name,
+          latitude: parseFloat(item.latitude),
+          longitude: parseFloat(item.longtitude),
+        }));
+        setListData(formattedData);
+      }
+    } catch (err) {
+      console.error("Error fetching communities:", err);
+    }
+  };
 
   useEffect(() => {
-    if (userLocation) {
-      focusOnUserLocation();
-    }
-  }, [userLocation]);
+    const initialize = async () => {
+      const location = await getUserLocation();
+      await fetchCommunities();
+      if (location) focusOnUserLocation();
+    };
+    initialize();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       setSelectedId(null);
       setSelectedTitle("Communities Near You");
-      setRefresh((prev) => prev + 1);
     }, [])
   );
 
   const handleSelect = (id, name, latitude, longitude) => {
     setSelectedId(id);
     setSelectedTitle(name);
-
     if (mapRef.current && latitude && longitude) {
       mapRef.current.animateToRegion({
         latitude,
@@ -92,68 +111,79 @@ export default function Communities() {
         longitudeDelta: 0.01,
       });
     }
-
     navigation.navigate("MainTabs", { screen: "Home" });
   };
 
-  // For Create Community button (just open modal for now)
   const handleCreateCommunityPress = () => {
     setIsModalVisible(true);
   };
 
-  // For Join Community button (can implement logic later)
   const handleJoinCommunityPress = () => {
     navigation.navigate("JoinCommunities");
   };
 
-  // Handle community creation in modal
-  const handleCreateCommunity = () => {
+  const handleCreateCommunity = async () => {
     if (!communityName || !userLocation) {
       Alert.alert(
         "Please enter a community name and ensure location is available."
       );
       return;
     }
-    setCommunityMarker({
-      id: Date.now().toString(),
-      name: communityName,
-      latitude: userLocation.latitude,
-      longitude: userLocation.longitude,
-    });
-    Alert.alert(
-      `Community "${communityName}" created at (${userLocation.latitude.toFixed(
-        4
-      )}, ${userLocation.longitude.toFixed(4)})`
-    );
-    setIsModalVisible(false);
-    setCommunityName("");
-    focusOnUserLocation();
+
+    const postData = {
+      comm_name: communityName,
+      location: "User Current Location",
+      latitude: userLocation.latitude.toString(),
+      longtitude: userLocation.longitude.toString(),
+      admin_id: `${user_id}`,
+    };
+
+    try {
+      const response = await fetch(
+        `https://69df-202-53-4-31.ngrok-free.app/api/create_community/${user_id}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(postData),
+        }
+      );
+
+      if (response.ok) {
+        Alert.alert("Community created successfully!");
+        setCommunityMarker({
+          id: Date.now().toString(),
+          name: communityName,
+          latitude: userLocation.latitude,
+          longitude: userLocation.longitude,
+        });
+        setCommunityName("");
+        setIsModalVisible(false);
+        focusOnUserLocation();
+        fetchCommunities();
+      } else {
+        Alert.alert("Failed to create community.");
+      }
+    } catch (error) {
+      console.error("Create community error:", error);
+      Alert.alert("Error creating community.");
+    }
   };
 
   const renderItem = ({ item }) => (
     <TouchableOpacity
+      style={styles.item}
       onPress={() =>
-        handleSelect(
-          item.id,
-          item.name,
-          userLocation?.latitude,
-          userLocation?.longitude
-        )
+        handleSelect(item.id, item.name, item.latitude, item.longitude)
       }
-      style={[styles.item, { backgroundColor: "#fff" }]}
     >
-      <Text style={[styles.itemText, { color: "#000" }]}>{item.name}</Text>
+      <Text style={styles.itemText}>{item.name}</Text>
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Map Container */}
-      <View style={styles.mapContainer}>
-        <View style={styles.mapTitleContainer}>
-          <Text style={styles.mapTitle}>{selectedTitle}</Text>
-        </View>
-
+      <View style={styles.mapSection}>
+        <Text style={styles.mapTitle}>{selectedTitle}</Text>
         <MapView
           ref={mapRef}
           style={styles.map}
@@ -164,24 +194,15 @@ export default function Communities() {
             latitudeDelta: 0.1,
             longitudeDelta: 0.1,
           }}
-          showsUserLocation={true}
-          showsMyLocationButton={true}
+          showsUserLocation
+          showsMyLocationButton
         >
           {communityMarker && (
             <Marker
-              key={communityMarker.id}
               coordinate={{
                 latitude: communityMarker.latitude,
                 longitude: communityMarker.longitude,
               }}
-              onPress={() =>
-                handleSelect(
-                  communityMarker.id,
-                  communityMarker.name,
-                  communityMarker.latitude,
-                  communityMarker.longitude
-                )
-              }
             >
               <Callout>
                 <Text style={styles.markerLabelText}>
@@ -190,59 +211,65 @@ export default function Communities() {
               </Callout>
             </Marker>
           )}
-
           {userLocation && (
-            <Marker
-              coordinate={{
-                latitude: userLocation.latitude,
-                longitude: userLocation.longitude,
-              }}
-              pinColor="blue"
-            >
+            <Marker coordinate={userLocation} pinColor="blue">
               <Callout>
-                <Text>Your Location</Text>
+                <Text style={styles.markerLabelText}>Your Location</Text>
               </Callout>
             </Marker>
           )}
+          {listData.map((community) => (
+            <Marker
+              key={community.id}
+              coordinate={{
+                latitude: community.latitude,
+                longitude: community.longitude,
+              }}
+            >
+              <Callout>
+                <Text style={styles.markerLabelText}>{community.name}</Text>
+              </Callout>
+            </Marker>
+          ))}
         </MapView>
       </View>
 
-      {/* Buttons for Create / Join Community */}
       <View style={styles.topButtonsContainer}>
         <TouchableOpacity
-          onPress={handleCreateCommunityPress}
           style={styles.topButton}
+          onPress={handleCreateCommunityPress}
         >
           <Text style={styles.topButtonText}>Create Community</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={handleJoinCommunityPress}
           style={styles.topButton}
+          onPress={handleJoinCommunityPress}
         >
           <Text style={styles.topButtonText}>Join Community</Text>
         </TouchableOpacity>
       </View>
 
-      {/* List Container */}
       <FlatList
         data={listData}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
-        extraData={refresh}
+        contentContainerStyle={{ paddingBottom: 30 }}
         style={styles.list}
-        contentContainerStyle={{ paddingBottom: 20 }}
       />
 
-      <Modal visible={isModalVisible} transparent={true} animationType="slide">
-        <View style={styles.modalContainer}>
+      <Modal visible={isModalVisible} transparent animationType="slide">
+        <KeyboardAvoidingView
+          style={styles.modalContainer}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Create New Community</Text>
             <TextInput
-              style={styles.input}
               placeholder="Enter community name"
-              placeholderTextColor="#999"
               value={communityName}
               onChangeText={setCommunityName}
+              style={styles.input}
+              placeholderTextColor="#999"
             />
             <TouchableOpacity
               style={styles.modalButton}
@@ -257,137 +284,102 @@ export default function Communities() {
               <Text style={styles.modalCancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );
 }
-// Replace the old styles and modal JSX with this updated version
 
-// NEW STYLES
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#ECECFF", // light bluish-purple background
+    backgroundColor: "#ECECFF",
   },
-  mapContainer: {
-    height: "40%",
-    width: "100%",
+  mapSection: {
+    height: screenHeight * 0.4,
   },
-  mapTitleContainer: {
-    position: "absolute",
-    top: 10,
-    left: 0,
-    right: 0,
-    alignItems: "center",
-    zIndex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.9)",
-    padding: 10,
-    borderRadius: 10,
-    marginHorizontal: 20,
+  map: {
+    flex: 1,
   },
   mapTitle: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#4C3E99",
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
+    textAlign: "center",
+    paddingVertical: 10,
   },
   topButtonsContainer: {
     flexDirection: "row",
     justifyContent: "space-evenly",
-    paddingVertical: 15,
-    backgroundColor: "#D6D0FF",
-    marginHorizontal: 20,
-    borderRadius: 30,
     marginTop: 10,
-    marginBottom: 5,
-    shadowColor: "#6C63FF",
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    paddingHorizontal: 10,
   },
   topButton: {
     backgroundColor: "#6C63FF",
     paddingVertical: 10,
     paddingHorizontal: 20,
-    borderRadius: 30,
-    elevation: 2,
+    borderRadius: 20,
   },
   topButtonText: {
     color: "#fff",
-    fontSize: 16,
     fontWeight: "bold",
   },
   list: {
     flex: 1,
-    width: "100%",
+    marginTop: 10,
   },
   item: {
-    padding: 15,
-    marginVertical: 10,
-    borderRadius: 5,
-    width: "80%",
-    alignSelf: "center",
-    alignItems: "center",
-    justifyContent: "center",
     backgroundColor: "#F3F0FF",
+    marginHorizontal: 20,
+    marginBottom: 10,
+    borderRadius: 10,
+    padding: 15,
+    alignItems: "center",
     shadowColor: "#6C63FF",
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
   itemText: {
-    fontSize: 18,
-    fontWeight: "bold",
     color: "#3D347A",
+    fontWeight: "bold",
+    fontSize: 16,
   },
   markerLabelText: {
     fontSize: 14,
     fontWeight: "bold",
-    color: "#000",
   },
   modalContainer: {
     flex: 1,
     justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    backgroundColor: "rgba(0,0,0,0.4)",
   },
   modalContent: {
-    width: "85%",
-    padding: 25,
     backgroundColor: "#F3F0FF",
+    marginHorizontal: 30,
     borderRadius: 15,
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 3 },
+    padding: 20,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
-    marginBottom: 15,
     color: "#4C3E99",
+    marginBottom: 15,
+    textAlign: "center",
   },
   input: {
-    width: "100%",
-    borderWidth: 1,
     borderColor: "#B9B4F4",
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 20,
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 8,
     backgroundColor: "#fff",
-    color: "#333",
+    marginBottom: 15,
   },
   modalButton: {
     backgroundColor: "#6C63FF",
+    padding: 12,
     borderRadius: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
     marginBottom: 10,
-    width: "100%",
     alignItems: "center",
   },
   modalCancelButton: {
@@ -396,11 +388,9 @@ const styles = StyleSheet.create({
   modalButtonText: {
     color: "#fff",
     fontWeight: "bold",
-    fontSize: 16,
   },
   modalCancelText: {
     color: "#333",
     fontWeight: "bold",
-    fontSize: 16,
   },
 });
