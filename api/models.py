@@ -54,6 +54,7 @@ class Offers(models.Model):
     offer_type = models.CharField(max_length=30)
     title = models.CharField(max_length=100)
     description = models.CharField(max_length=500)
+    status = models.IntegerField(default=1)
     
 class Requests(models.Model):
     
@@ -67,3 +68,4 @@ class Requests(models.Model):
     from_date = models.CharField(max_length=20,null=True,blank=True)
     to_date = models.CharField(max_length=20,null=True,blank=True)
     provider_id = models.ForeignKey(User, on_delete=models.CASCADE,null=True,blank=True, related_name="provider_request")
+    status = models.IntegerField(default=1)
