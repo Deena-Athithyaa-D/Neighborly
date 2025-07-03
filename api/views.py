@@ -8,6 +8,7 @@ from .models import User,Community,Join,Posts,Offers,Requests,Profile,JoinReques
 from functools import wraps
 from rest_framework.response import Response
 from rest_framework import status
+from math import radians, cos, sin, asin, sqrt
 # from .auth import verify_firebase_token
 
 # def firebase_auth_required(view_func):
@@ -160,7 +161,7 @@ def create_request(request):
 @api_view(['GET'])
 # @firebase_auth_required
 def view_public_requests(request, comm_id):
-    requests = Requests.objects.filter(comm_id = comm_id).filter(provider_id=None)
+    requests = Requests.objects.filter(comm_id=comm_id).filter(offer_id = None)
     serializer = RequestsSerializer(requests, many = True)
     request_datas = []
     for data in serializer.data:
@@ -210,8 +211,8 @@ def view_user_requests(request, comm_id, user_id):
 
 @api_view(['GET'])
 # @firebase_auth_required
-def view_request_from_neighbours(request, provider_id):
-    requests = Requests.objects.filter(provider_id=provider_id)
+def view_request_from_neighbours(request, offer_id):
+    requests = Requests.objects.filter(offer_id = offer_id)
     serializer = RequestsSerializer(requests, many = True)
     request_datas = []
     for data in serializer.data:
@@ -281,8 +282,43 @@ def update_request_status(request, request_id, status, user_id):
     try:
         request = Requests.objects.get(id=request_id)
         request.status = status
-        request.provider_id = user_id
         request.save()
         return Response({'message': 'Status updated'}, status=200)
     except Offers.DoesNotExist:
         return Response({'error': 'Request not found'}, status=404)
+    
+
+def haversine(lat1, lon1, lat2, lon2):
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+    
+    dlat = lat2 - lat1 
+    dlon = lon2 - lon1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    r = 6371 
+    return c * r
+
+
+@api_view(['GET'])
+# @firebase_auth_required
+def get_communities(request, latitude, longtitude):
+    try:
+        user_lat = float(latitude)
+        user_lon = float(longtitude)
+    except ValueError:
+        return Response({"error": "Invalid latitude/longitude"}, status=400)
+
+    nearby = []
+    for community in Community.objects.all():
+        try:
+            comm_lat = float(community.latitude)
+            comm_lon = float(community.longtitude)
+            distance = haversine(user_lat, user_lon, comm_lat, comm_lon)
+            if distance <= 1.0: 
+                nearby.append(community)
+        except ValueError:
+            continue
+
+    serializer = CommunitySerializer(nearby, many=True)
+    return Response(serializer.data)
+    

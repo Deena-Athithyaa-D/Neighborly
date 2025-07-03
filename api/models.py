@@ -21,8 +21,8 @@ class Community(models.Model):
     comm_name = models.CharField(max_length = 50)
     admin_id = models.ForeignKey(User, on_delete=models.CASCADE)
     location = models.CharField(max_length=100)
-    latitude = models.CharField(max_length=50)
-    longtitude = models.CharField()
+    latitude = models.FloatField()
+    longtitude = models.FloatField()
 
 class JoinRequest(models.Model):
     
@@ -67,5 +67,5 @@ class Requests(models.Model):
     to_time = models.CharField(max_length=20,null=True,blank=True)
     from_date = models.CharField(max_length=20,null=True,blank=True)
     to_date = models.CharField(max_length=20,null=True,blank=True)
-    provider_id = models.ForeignKey(User, on_delete=models.CASCADE,null=True,blank=True, related_name="provider_request")
+    offer_id = models.ForeignKey(Offers, on_delete=models.CASCADE,null=True,blank=True)
     status = models.IntegerField(default=1)
