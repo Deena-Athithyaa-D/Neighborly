@@ -1,3 +1,4 @@
+// ExchangeHub.js
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -16,10 +17,11 @@ export default function ExchangeHub() {
   const [activeTab, setActiveTab] = useState("product");
   const [subactiveTab, setsubactiveTab] = useState("lend");
   const [openModal, setOpenModal] = useState(false);
+  const [selectedRequestItem, setSelectedRequestItem] = useState(null);
 
   const [formData, setFormData] = useState({
-    user_id: "72ec87c9-eb03-44e7-853f-b4c774db0deb",
-    comm_id: "2",
+    user_id: "1959af06-26aa-4d18-b5af-96330b2497fa",
+    comm_id: "1",
     offer_type: "product",
     title: "",
     description: "",
@@ -42,10 +44,11 @@ export default function ExchangeHub() {
     const fetchDetails = async () => {
       try {
         const data = await fetch(
-          "https://69df-202-53-4-31.ngrok-free.app/api/get_offers/2"
+          "https://9664-202-53-4-31.ngrok-free.app//api/get_offers/1"
         );
         const response = await data.json();
         setLend(response);
+        console.log(response);
       } catch (err) {
         console.log(err);
       }
@@ -53,11 +56,10 @@ export default function ExchangeHub() {
     const fetchDetails1 = async () => {
       try {
         const data = await fetch(
-          "https://69df-202-53-4-31.ngrok-free.app/api/view_public_requests/2"
+          "https://9664-202-53-4-31.ngrok-free.app//api/view_public_requests/1"
         );
         const response = await data.json();
         setReq(response);
-        console.log(response);
       } catch (err) {
         console.log(err);
       }
@@ -69,6 +71,23 @@ export default function ExchangeHub() {
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
+
+  const openNewModal = () => {
+    setSelectedRequestItem(null);
+    setFormData({
+      user_id: "1959af06-26aa-4d18-b5af-96330b2497fa",
+      comm_id: "1",
+      offer_type: activeTab,
+      title: "",
+      description: "",
+      fromDate: "",
+      toDate: "",
+      fromTime: "",
+      toTime: "",
+    });
+    setOpenModal(true);
+  };
+
   const handleSubmit = async () => {
     try {
       const submissionData = {
@@ -78,11 +97,17 @@ export default function ExchangeHub() {
         description: formData.description,
       };
 
-      if (subactiveTab === "lend") {
-        // For Offers model
+      if (selectedRequestItem) {
+        submissionData.request_type = formData.offer_type;
+        submissionData.from_date = formData.fromDate;
+        submissionData.to_date = formData.toDate;
+        submissionData.from_time = formData.fromTime;
+        submissionData.to_time = formData.toTime;
+        submissionData.offer_id = selectedRequestItem.id;
+        submissionData.user_name = selectedRequestItem.user_name;
+      } else if (subactiveTab === "lend") {
         submissionData.offer_type = formData.offer_type;
       } else {
-        // For Requests model
         submissionData.request_type = formData.offer_type;
         submissionData.from_date = formData.fromDate;
         submissionData.to_date = formData.toDate;
@@ -91,9 +116,9 @@ export default function ExchangeHub() {
       }
 
       const endpoint =
-        subactiveTab === "lend"
-          ? "https://69df-202-53-4-31.ngrok-free.app/api/create_offer"
-          : "https://69df-202-53-4-31.ngrok-free.app/api/create_request";
+        selectedRequestItem || subactiveTab === "request"
+          ? "https://9664-202-53-4-31.ngrok-free.app//api/create_request"
+          : "https://9664-202-53-4-31.ngrok-free.app//api/create_offer";
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -102,46 +127,40 @@ export default function ExchangeHub() {
         },
         body: JSON.stringify(submissionData),
       });
-
+      console.log(JSON.stringify(submissionData));
       const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.message || "Failed to submit");
-      }
+      if (!response.ok) throw new Error(data.message || "Failed to submit");
 
-      Alert.alert(
-        "Success",
-        `${
-          subactiveTab === "lend" ? "Lending offer" : "Request"
-        } submitted successfully!`,
-        [
-          {
-            text: "OK",
-            onPress: () => {
-              setFormData({
-                user_id: "72ec87c9-eb03-44e7-853f-b4c774db0deb",
-                comm_id: "2",
-                offer_type: "product",
-                title: "",
-                description: "",
-                fromDate: "",
-                toDate: "",
-                fromTime: "",
-                toTime: "",
-              });
-              setOpenModal(false);
-            },
+      Alert.alert("Success", `Request submitted successfully!`, [
+        {
+          text: "OK",
+          onPress: () => {
+            setFormData({
+              user_id: "1959af06-26aa-4d18-b5af-96330b2497fa",
+              comm_id: "2",
+              offer_type: "product",
+              title: "",
+              description: "",
+              fromDate: "",
+              toDate: "",
+              fromTime: "",
+              toTime: "",
+            });
+            setSelectedRequestItem(null);
+            setOpenModal(false);
           },
-        ]
-      );
+        },
+      ]);
     } catch (error) {
       console.error("Submission error:", error);
       Alert.alert("Error", error.message || "Something went wrong");
     }
   };
+
   const handleCancel = () => {
-    Alert.alert("Cancelled", "Successfully cancelled");
     setOpenModal(false);
+    setSelectedRequestItem(null);
   };
 
   const showPicker = (field, mode) => {
@@ -161,7 +180,6 @@ export default function ExchangeHub() {
 
   return (
     <View>
-      {/* Top Tabs */}
       <View style={styles.pageTop}>
         <Pressable
           onPress={() => setActiveTab("product")}
@@ -177,7 +195,6 @@ export default function ExchangeHub() {
         </Pressable>
       </View>
 
-      {/* Sub Tabs */}
       <View style={styles.subTab}>
         <Pressable
           onPress={() => setsubactiveTab("lend")}
@@ -193,7 +210,6 @@ export default function ExchangeHub() {
         </Pressable>
       </View>
 
-      {/* Content List */}
       <View style={styles.contentBox}>
         <FlatList
           data={
@@ -206,53 +222,109 @@ export default function ExchangeHub() {
             <View style={styles.itemBox}>
               <Text style={styles.itemText}>{item.title}</Text>
               <Text style={styles.desc}>{item.description}</Text>
+
+              {subactiveTab === "lend" && (
+                <Pressable
+                  style={styles.requestBtn}
+                  onPress={() => {
+                    setSelectedRequestItem(item);
+                    setFormData({
+                      ...formData,
+                      title: item.title,
+                      description: item.description,
+                      offer_type: item.offer_type || item.request_type,
+                      offer_id: item.id,
+                    });
+                    setOpenModal(true);
+                  }}
+                >
+                  <Text style={styles.requestBtnText}>Request</Text>
+                </Pressable>
+              )}
+
               {subactiveTab === "request" && (
-                <>
-                  <Text style={styles.desc}>
-                    From: {item.from_date} {item.from_time}
-                  </Text>
-                  <Text style={styles.desc}>
-                    To: {item.to_date} {item.to_time}
-                  </Text>
-                </>
+                <Pressable
+                  style={styles.requestBtn}
+                  onPress={async () => {
+                    try {
+                      const offerRes = await fetch(
+                        "https://9664-202-53-4-31.ngrok-free.app/api/create_offer",
+                        {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({
+                            user_id: "1959af06-26aa-4d18-b5af-96330b2497fa",
+                            comm_id: "1",
+                            offer_type: item.request_type,
+                            title: item.title,
+                            description: item.description,
+                          }),
+                        }
+                      );
+
+                      const offerData = await offerRes.json();
+
+                      if (!offerRes.ok) {
+                        throw new Error(
+                          offerData.message || "Failed to create offer"
+                        );
+                      }
+
+                      const offer_id = offerData.id; // Make sure your API returns this in response
+
+                      const updateRes = await fetch(
+                        `https://9664-202-53-4-31.ngrok-free.app/api/update_request_status/${
+                          item.id
+                        }/2/${parseInt(offer_id)}`,
+                        {
+                          method: "PUT",
+                          headers: {
+                            "Content-Type": "application/json",
+                          },
+                        }
+                      );
+
+                      if (!updateRes.ok) {
+                        throw new Error("Failed to update request status");
+                      }
+
+                      Alert.alert(
+                        "Success",
+                        "Lend offer sent and status updated!"
+                      );
+                    } catch (error) {
+                      console.error("Lend error:", error);
+                      Alert.alert(
+                        "Error",
+                        error.message || "Something went wrong"
+                      );
+                    }
+                  }}
+                >
+                  <Text style={styles.requestBtnText}>Lend</Text>
+                </Pressable>
               )}
             </View>
           )}
         />
       </View>
 
-      {/* Add Button */}
-      <Pressable style={styles.addButton} onPress={() => setOpenModal(true)}>
+      <Pressable style={styles.addButton} onPress={openNewModal}>
         <Text style={styles.addButtonText}>+</Text>
       </Pressable>
 
-      {/* Modal */}
       <Modal visible={openModal} animationType="slide" transparent>
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>
-              {subactiveTab === "lend" ? "Create an Offer" : "Make a Request"}
+              {selectedRequestItem
+                ? `Request: ${selectedRequestItem.title}`
+                : subactiveTab === "lend"
+                ? "Create an Offer"
+                : "Make a Request"}
             </Text>
-
-            <Text style={styles.label}>Type:</Text>
-            <View style={styles.row}>
-              <Pressable
-                onPress={() => handleChange("offer_type", "product")}
-                style={styles.option}
-              >
-                <Text>
-                  {formData.offer_type === "product" ? "[Product]" : "Product"}
-                </Text>
-              </Pressable>
-              <Pressable
-                onPress={() => handleChange("offer_type", "service")}
-                style={[styles.option, { marginLeft: 20 }]}
-              >
-                <Text>
-                  {formData.offer_type === "service" ? "[Service]" : "Service"}
-                </Text>
-              </Pressable>
-            </View>
 
             <Text style={styles.label}>Title:</Text>
             <TextInput
@@ -270,7 +342,7 @@ export default function ExchangeHub() {
               style={styles.input}
             />
 
-            {subactiveTab === "request" && (
+            {(subactiveTab === "request" || selectedRequestItem) && (
               <>
                 <Text style={styles.label}>From Date:</Text>
                 <Pressable
@@ -332,6 +404,17 @@ export default function ExchangeHub() {
 }
 
 const styles = StyleSheet.create({
+  requestBtn: {
+    backgroundColor: "#2979ff",
+    padding: 8,
+    borderRadius: 6,
+    marginTop: 10,
+  },
+  requestBtnText: {
+    color: "#fff",
+    textAlign: "center",
+    fontWeight: "500",
+  },
   pageTop: {
     flexDirection: "row",
     paddingVertical: 15,
