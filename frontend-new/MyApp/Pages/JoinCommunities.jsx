@@ -7,41 +7,13 @@ import {
   StyleSheet,
   View,
   Alert,
+  ActivityIndicator,
+  TextInput,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, Callout } from "react-native-maps";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
 import { MaterialIcons } from "@expo/vector-icons";
-
-// Utility: Generate random points within ~2km radius
-const generateNearbyCommunities = (userLat, userLng, count = 3) => {
-  const radiusInMeters = 2000;
-  const earthRadius = 6378137;
-
-  const communities = [];
-
-  for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const distance = Math.random() * radiusInMeters;
-
-    const deltaLat = (distance * Math.cos(angle)) / earthRadius;
-    const deltaLng =
-      (distance * Math.sin(angle)) /
-      (earthRadius * Math.cos((userLat * Math.PI) / 180));
-
-    const newLat = userLat + (deltaLat * 180) / Math.PI;
-    const newLng = userLng + (deltaLng * 180) / Math.PI;
-
-    communities.push({
-      id: `${i + 1}`,
-      name: `Community ${String.fromCharCode(65 + i)}`, // A, B, C
-      latitude: newLat,
-      longitude: newLng,
-    });
-  }
-
-  return communities;
-};
 
 export default function JoinCommunities() {
   const [selectedId, setSelectedId] = useState(null);
@@ -51,28 +23,51 @@ export default function JoinCommunities() {
   const [refresh, setRefresh] = useState(0);
   const [userLocation, setUserLocation] = useState(null);
   const [communityData, setCommunityData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [referralModalVisible, setReferralModalVisible] = useState(false);
+  const [referralCode, setReferralCode] = useState("");
+  const [pendingCommId, setPendingCommId] = useState(null);
+  const [pendingCommName, setPendingCommName] = useState("");
   const mapRef = useRef(null);
   const navigation = useNavigation();
 
+  // 🔁 Hardcoded user ID for now (replace with real data later)
+  const userId = "1959af06-26aa-4d18-b5af-96330b2497fa";
+
   const getUserLocation = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permission to access location was denied");
-      return;
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission to access location was denied");
+        return;
+      }
+
+      let location = await Location.getCurrentPositionAsync({});
+      const userLoc = {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      };
+      setUserLocation(userLoc);
+
+      const response = await fetch(
+        `https://9664-202-53-4-31.ngrok-free.app/api/get_communities/${userLoc.latitude}/${userLoc.longitude}`
+      );
+
+      const data = await response.json();
+      const formatted = data.map((item) => ({
+        id: String(item.id),
+        name: item.comm_name,
+        latitude: item.latitude,
+        longitude: item.longtitude,
+        location: item.location,
+      }));
+
+      setCommunityData(formatted);
+    } catch (error) {
+      Alert.alert("Error", error.message || "Failed to fetch data.");
+    } finally {
+      setLoading(false);
     }
-
-    let location = await Location.getCurrentPositionAsync({});
-    const userLoc = {
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-    };
-    setUserLocation(userLoc);
-
-    const generated = generateNearbyCommunities(
-      userLoc.latitude,
-      userLoc.longitude
-    );
-    setCommunityData(generated);
   };
 
   const focusOnUserLocation = () => {
@@ -105,17 +100,42 @@ export default function JoinCommunities() {
   );
 
   const handleSelect = (id, name) => {
-    Alert.alert("Join Community", `Would you like to join "${name}"?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Join",
-        onPress: () => {
-          setSelectedId(id);
-          setSelectedTitle(name);
-          navigation.navigate("MainTabs", { screen: "Home" });
-        },
-      },
-    ]);
+    setPendingCommId(id);
+    setPendingCommName(name);
+    setReferralModalVisible(true);
+  };
+
+  const joinCommunity = async (comm_id, referral_code) => {
+    try {
+      const res = await fetch(
+        "https://9664-202-53-4-31.ngrok-free.app/api/create_join",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            comm_id: comm_id,
+            referral_code: referral_code,
+            is_admin: 0,
+          }),
+        }
+      );
+
+      const result = await res.json();
+
+      if (res.ok) {
+        Alert.alert("Joined!", `You’ve successfully joined ${pendingCommName}`);
+        setReferralModalVisible(false);
+        setReferralCode("");
+        navigation.navigate("MainTabs", { screen: "Home" });
+      } else {
+        Alert.alert("Error", result.message || "Failed to join community");
+      }
+    } catch (error) {
+      Alert.alert("Error", error.message);
+    }
   };
 
   const renderItem = ({ item }) => (
@@ -124,6 +144,7 @@ export default function JoinCommunities() {
       style={styles.item}
     >
       <Text style={styles.itemText}>{item.name}</Text>
+      <Text style={{ color: "#666" }}>{item.location}</Text>
     </TouchableOpacity>
   );
 
@@ -186,14 +207,60 @@ export default function JoinCommunities() {
         </MapView>
       </View>
 
-      <FlatList
-        data={communityData}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        extraData={refresh}
-        style={styles.list}
-        contentContainerStyle={{ paddingBottom: 20 }}
-      />
+      {loading ? (
+        <ActivityIndicator
+          size="large"
+          color="#6C63FF"
+          style={{ marginTop: 20 }}
+        />
+      ) : (
+        <FlatList
+          data={communityData}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          extraData={refresh}
+          style={styles.list}
+          contentContainerStyle={{ paddingBottom: 20 }}
+        />
+      )}
+
+      {referralModalVisible && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Enter Referral Code</Text>
+            <TextInput
+              placeholder="Referral Code"
+              value={referralCode}
+              onChangeText={setReferralCode}
+              style={styles.input}
+              placeholderTextColor="#888"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                onPress={() => {
+                  setReferralModalVisible(false);
+                  setReferralCode("");
+                }}
+                style={styles.cancelButton}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  if (!referralCode.trim()) {
+                    Alert.alert("Please enter a referral code.");
+                    return;
+                  }
+                  joinCommunity(pendingCommId, referralCode.trim());
+                }}
+                style={styles.confirmButton}
+              >
+                <Text style={styles.confirmText}>Join</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -259,23 +326,62 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
   },
-  iconWrapper: {
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 2,
+  markerContainer: {
+    backgroundColor: "white",
+    padding: 6,
+    borderRadius: 8,
     alignItems: "center",
+  },
+  modalOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
     justifyContent: "center",
+    alignItems: "center",
+    zIndex: 999,
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
     elevation: 5,
   },
-  calloutContainer: {
-    backgroundColor: "white",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 10,
+    color: "#4a4a8c",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
     borderRadius: 8,
-    elevation: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
+    padding: 10,
+    marginBottom: 20,
+    color: "#000",
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cancelButton: {
+    padding: 10,
+  },
+  confirmButton: {
+    backgroundColor: "#6C63FF",
+    padding: 10,
+    borderRadius: 5,
+  },
+  cancelText: {
+    color: "#888",
+    fontWeight: "600",
+  },
+  confirmText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
 });
