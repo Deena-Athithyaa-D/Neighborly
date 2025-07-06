@@ -44,7 +44,7 @@ export default function ExchangeHub() {
     const fetchDetails = async () => {
       try {
         const data = await fetch(
-          "https://9664-202-53-4-31.ngrok-free.app//api/get_offers/1"
+          "https://4d71-202-53-4-31.ngrok-free.app//api/get_offers/1"
         );
         const response = await data.json();
         setLend(response);
@@ -56,7 +56,7 @@ export default function ExchangeHub() {
     const fetchDetails1 = async () => {
       try {
         const data = await fetch(
-          "https://9664-202-53-4-31.ngrok-free.app//api/view_public_requests/1"
+          "https://4d71-202-53-4-31.ngrok-free.app//api/view_public_requests/1"
         );
         const response = await data.json();
         setReq(response);
@@ -117,8 +117,8 @@ export default function ExchangeHub() {
 
       const endpoint =
         selectedRequestItem || subactiveTab === "request"
-          ? "https://9664-202-53-4-31.ngrok-free.app//api/create_request"
-          : "https://9664-202-53-4-31.ngrok-free.app//api/create_offer";
+          ? "https://4d71-202-53-4-31.ngrok-free.app//api/create_request"
+          : "https://4d71-202-53-4-31.ngrok-free.app//api/create_offer";
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -248,7 +248,7 @@ export default function ExchangeHub() {
                   onPress={async () => {
                     try {
                       const offerRes = await fetch(
-                        "https://9664-202-53-4-31.ngrok-free.app/api/create_offer",
+                        "https://4d71-202-53-4-31.ngrok-free.app/api/create_offer",
                         {
                           method: "POST",
                           headers: {
@@ -275,7 +275,7 @@ export default function ExchangeHub() {
                       const offer_id = offerData.id; // Make sure your API returns this in response
 
                       const updateRes = await fetch(
-                        `https://9664-202-53-4-31.ngrok-free.app/api/update_request_status/${
+                        `https://4d71-202-53-4-31.ngrok-free.app/api/update_request_status/${
                           item.id
                         }/2/${parseInt(offer_id)}`,
                         {

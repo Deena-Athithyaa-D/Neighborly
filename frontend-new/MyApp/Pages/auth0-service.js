@@ -23,14 +23,13 @@ export default function Auth({ navigation }) {
     };
     generateNonce();
   }, []);
-
+  const redirectUri = AuthSession.makeRedirectUri({
+    useProxy: true, // required for Expo Go
+  });
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
       clientId: config.clientId,
-      redirectUri: AuthSession.makeRedirectUri({
-        useProxy: true,
-        native: config.redirectUri,
-      }),
+      redirectUri: redirectUri,
       scopes: ["openid", "profile", "email"],
       responseType: "id_token token", // Request both ID token and access token
       extraParams: {
@@ -59,7 +58,7 @@ export default function Auth({ navigation }) {
         // Store access token
         setAccessToken(params.access_token);
         console.log("Access Token:", params.access_token); // Log the access token
-        
+
         const decoded = jwtDecode(params.id_token);
 
         // Verify nonce
@@ -100,5 +99,5 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: { fontSize: 22, marginBottom: 20 },
   info: { fontSize: 18, color: "green", marginTop: 20 },
-  token: { fontSize: 14, color: "gray", marginTop: 10 }
+  token: { fontSize: 14, color: "gray", marginTop: 10 },
 });

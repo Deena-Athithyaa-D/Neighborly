@@ -50,7 +50,7 @@ export default function JoinCommunities() {
       setUserLocation(userLoc);
 
       const response = await fetch(
-        `https://9664-202-53-4-31.ngrok-free.app/api/get_communities/${userLoc.latitude}/${userLoc.longitude}`
+        `https://4d71-202-53-4-31.ngrok-free.app/api/get_communities/${userLoc.latitude}/${userLoc.longitude}`
       );
 
       const data = await response.json();
@@ -108,7 +108,7 @@ export default function JoinCommunities() {
   const joinCommunity = async (comm_id, referral_code) => {
     try {
       const res = await fetch(
-        "https://9664-202-53-4-31.ngrok-free.app/api/create_join",
+        "https://4d71-202-53-4-31.ngrok-free.app/api/create_join",
         {
           method: "POST",
           headers: {
