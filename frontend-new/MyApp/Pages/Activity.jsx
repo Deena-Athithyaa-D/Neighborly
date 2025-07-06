@@ -45,7 +45,7 @@ const Activity = () => {
     try {
       // Fetch offerings data
       const offersRes = await fetch(
-        "https://9664-202-53-4-31.ngrok-free.app/api/get_offers_for_user/1959af06-26aa-4d18-b5af-96330b2497fa/1"
+        "https://4d71-202-53-4-31.ngrok-free.app/api/get_offers_for_user/1959af06-26aa-4d18-b5af-96330b2497fa/1"
       );
       if (!offersRes.ok) throw new Error("Failed to fetch offerings");
       const offersData = await offersRes.json();
@@ -53,7 +53,7 @@ const Activity = () => {
 
       // Fetch requests data
       const requestsRes = await fetch(
-        "https://9664-202-53-4-31.ngrok-free.app/api/view_user_requests/1/1959af06-26aa-4d18-b5af-96330b2497fa"
+        "https://4d71-202-53-4-31.ngrok-free.app/api/view_user_requests/1/1959af06-26aa-4d18-b5af-96330b2497fa"
       );
       if (!requestsRes.ok) throw new Error("Failed to fetch requests");
       const requestsData = await requestsRes.json();
@@ -67,7 +67,7 @@ const Activity = () => {
   const fetchInterestedUsers = async (offerId) => {
     try {
       const res = await fetch(
-        `https://9664-202-53-4-31.ngrok-free.app/api/view_request_from_neighbours/${offerId}`
+        `https://4d71-202-53-4-31.ngrok-free.app/api/view_request_from_neighbours/${offerId}`
       );
       if (!res.ok) throw new Error("Failed to fetch interested users");
       const data = await res.json();
@@ -102,7 +102,7 @@ const Activity = () => {
     try {
       // First PUT request
       const firstResponse = await fetch(
-        `https://9664-202-53-4-31.ngrok-free.app/api/update_offer_status/${offer_id}/${status}`,
+        `https://4d71-202-53-4-31.ngrok-free.app/api/update_offer_status/${offer_id}/${status}`,
         {
           method: "PUT",
           headers: {
@@ -111,7 +111,7 @@ const Activity = () => {
         }
       );
       console.log(
-        `https://9664-202-53-4-31.ngrok-free.app/api/update_offer_status/${offer_id}/${status}`
+        `https://4d71-202-53-4-31.ngrok-free.app/api/update_offer_status/${offer_id}/${status}`
       );
       if (!firstResponse.ok) {
         throw new Error("First request failed");
@@ -119,7 +119,7 @@ const Activity = () => {
 
       // Second PUT request
       const secondResponse = await fetch(
-        `https://9664-202-53-4-31.ngrok-free.app/api/update_request_status/${request_id}/${status}/${offer_id}`,
+        `https://4d71-202-53-4-31.ngrok-free.app/api/update_request_status/${request_id}/${status}/${offer_id}`,
         {
           method: "PUT",
           headers: {
@@ -128,7 +128,7 @@ const Activity = () => {
         }
       );
       console.log(
-        `https://9664-202-53-4-31.ngrok-free.app/api/update_request_status/${request_id}/${status}/${offer_id}`
+        `https://4d71-202-53-4-31.ngrok-free.app/api/update_request_status/${request_id}/${status}/${offer_id}`
       );
       if (!secondResponse.ok) {
         throw new Error("Second request failed");

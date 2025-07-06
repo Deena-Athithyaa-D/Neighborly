@@ -47,7 +47,7 @@ export default function Communities() {
     const getCommunities = async () => {
       try {
         const res = await fetch(
-          `https://9664-202-53-4-31.ngrok-free.app//api/get_user_communities/${user_id}`
+          `https://4d71-202-53-4-31.ngrok-free.app//api/get_user_communities/${user_id}`
         );
         const data = await res.json();
         if (Array.isArray(data)) {
@@ -104,7 +104,7 @@ export default function Communities() {
 
     try {
       const res = await fetch(
-        `https://9664-202-53-4-31.ngrok-free.app//api/create_community/${user_id}`,
+        `https://4d71-202-53-4-31.ngrok-free.app//api/create_community/${user_id}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
