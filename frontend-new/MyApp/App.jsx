@@ -4,46 +4,36 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import Icon from "react-native-vector-icons/MaterialIcons";
 
+// Screens
 import Home from "./Pages/Home";
 import Communities from "./Pages/Communities";
 import JoinCommunities from "./Pages/JoinCommunities";
 import ExchangeHub from "./Pages/ExchangeHub";
 import Activity from "./Pages/Activity";
-
-import { View, Text } from "react-native";
+import Auth from "./Pages/Auth"; // Make sure this is using our manual auth0-service
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
-// Placeholder screen for Explore and Profile
-function PlaceholderScreen({ route }) {
-  return (
-    <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-      <Text>{route.name} - Coming Soon!</Text>
-    </View>
-  );
-}
-
-// Bottom tab content (excluding Communities)
 function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: true,
         tabBarIcon: ({ color }) => {
-          let iconName = "home";
+          let iconName;
           switch (route.name) {
             case "Home":
               iconName = "home";
               break;
-            case "Explore":
-              iconName = "search";
+            case "Exchange":
+              iconName = "swap-horiz";
               break;
-            case "Profile":
-              iconName = "person";
+            case "Activity":
+              iconName = "notifications";
               break;
             default:
-              iconName = "home";
+              iconName = "help";
           }
           return <Icon name={iconName} size={24} color={color} />;
         },
@@ -52,7 +42,6 @@ function TabNavigator() {
       <Tab.Screen name="Home" component={Home} />
       <Tab.Screen name="Exchange" component={ExchangeHub} />
       <Tab.Screen name="Activity" component={Activity} />
-      
     </Tab.Navigator>
   );
 }
@@ -60,11 +49,16 @@ function TabNavigator() {
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Communities">
+      <Stack.Navigator initialRouteName="Auth">
+        <Stack.Screen
+          name="Auth"
+          component={Auth}
+          options={{ headerShown: false }}
+        />
         <Stack.Screen
           name="Communities"
           component={Communities}
-          options={{ headerShown: false }} // First screen, no header needed
+          options={{ headerShown: false }}
         />
         <Stack.Screen
           name="JoinCommunities"
