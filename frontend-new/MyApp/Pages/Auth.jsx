@@ -49,7 +49,7 @@ export default function Auth({ navigation }) {
   const sendIdTokenToBackend = async (idToken) => {
     try {
       const response = await fetch(
-        "https://4d71-202-53-4-31.ngrok-free.app/api/auth/auth0/",
+        "https://34ed-171-79-48-24.ngrok-free.app/api/auth/auth0/",
         {
           method: "POST",
           headers: {
