@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views,auth
+from . import views
 
 
 urlpatterns = [
@@ -20,7 +20,7 @@ urlpatterns = [
     path('view_join_requests/<comm_id>/<user_id>', views.view_join_requests),
     path('get_profile/<user_id>', views.get_profile),
     path('update_offer_status/<offer_id>/<status>', views.update_offer_status),
-    path('update_request_status/<request_id>/<status>/<user_id>', views.update_request_status),
+    path('update_request_status/<request_id>/<status>/<offer_id>', views.update_request_status),
     path('get_communities/<latitude>/<longtitude>', views.get_communities),
-    # path('google_sign_in',auth.google_sign_in)
+    path('auth/auth0/', views.Auth0LoginView.as_view())
 ]

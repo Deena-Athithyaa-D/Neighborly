@@ -14,16 +14,10 @@ from pathlib import Path
 import dj_database_url
 from dotenv import load_dotenv
 import os
-import firebase_admin
-from firebase_admin import credentials
 
 load_dotenv('.env')
 database_url = os.getenv("DATABASE_URL")
 
-# Firebase configuration
-FIREBASE_CREDENTIALS_PATH = "neighborly-71fa4-firebase-adminsdk-fbsvc-62a7d2905c.json"
-firebase_cred = credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
-firebase_admin.initialize_app(firebase_cred)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -149,3 +143,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:19006",
+    "https://your-frontend-app.com",
+]
