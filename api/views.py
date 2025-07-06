@@ -9,25 +9,84 @@ from functools import wraps
 from rest_framework.response import Response
 from rest_framework import status
 from math import radians, cos, sin, asin, sqrt
-# from .auth import verify_firebase_token
+from rest_framework.views import APIView
+from jose import jwt
+import requests
+from dotenv import load_dotenv
+import os
 
-# def firebase_auth_required(view_func):
-#     @wraps(view_func)
-#     def _wrapped_view(request, *args, **kwargs):
-#         try:
-#             decoded_token = verify_firebase_token(request)
-#             request.user = decoded_token 
-#         except Exception as e:
-#             return Response({"detail": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
-#         return view_func(request, *args, **kwargs)
-#     return _wrapped_view
+load_dotenv('.env')
+AUTH0_DOMAIN = os.getenv("AUTH0_DOMAIN")
+API_IDENTIFIER = 'https://neighborly.api'
+ALGORITHMS = ["RS256"]
+
+
+class Auth0LoginView(APIView):
+    def post(self, request):
+        id_token = request.data.get('id_token')
+
+        if not id_token:
+            return Response({'success': False, 'error': 'Missing ID token'}, status=400)
+
+        jwks_url = f'https://{AUTH0_DOMAIN}/.well-known/jwks.json'
+        jwks = requests.get(jwks_url).json()
+
+        try:
+            unverified_header = jwt.get_unverified_header(id_token)
+        except Exception:
+            return Response({'success': False, 'error': 'Invalid token header'}, status=400)
+
+        rsa_key = {}
+        for key in jwks['keys']:
+            if key['kid'] == unverified_header['kid']:
+                rsa_key = {
+                    'kty': key['kty'],
+                    'kid': key['kid'],
+                    'use': key['use'],
+                    'n': key['n'],
+                    'e': key['e']
+                }
+                break
+
+        if not rsa_key:
+            return Response({'success': False, 'error': 'RSA key not found'}, status=400)
+
+        try:
+            payload = jwt.decode(
+            id_token,
+            rsa_key,
+            algorithms=ALGORITHMS,
+            issuer=f"https://{AUTH0_DOMAIN}/",
+            options={
+                "verify_aud": False,
+                "verify_at_hash": False,  
+            }
+        )
+
+            email = payload.get("email")
+            if not email:
+                return Response({'success': False, 'error': 'Email not found in token'}, status=400)
+
+            user, _ = User.objects.get_or_create(email=email)
+            return Response({
+                'success': True,
+                'email': user.email,
+                'uuid': str(user.uuid)
+            })
+
+        except jwt.ExpiredSignatureError:
+            return Response({'success': False, 'error': 'Token expired'}, status=401)
+        except jwt.JWTClaimsError as e:
+            return Response({'success': False, 'error': f'Invalid claims: {str(e)}'}, status=401)
+        except Exception as e:
+            return Response({'success': False, 'error': f'Invalid token: {str(e)}'}, status=401)
+        
 
 @api_view(['GET','HEAD'])
 def home(request):
     return HttpResponse("Hello World")
 
 @api_view(['POST'])
-# @firebase_auth_required
 def create_profile(request):
     new_profile = ProfileSerializer(data = request.data)
     if new_profile.is_valid():
@@ -36,14 +95,12 @@ def create_profile(request):
     return Response(new_profile.errors, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-# @firebase_auth_required
 def get_profile(request, user_id):
     profile = Profile.objects.get(uuid = user_id)
     serializer = ProfileSerializer(profile)
     return Response(serializer.data)
 
 @api_view(['POST'])
-# @firebase_auth_required
 def create_community(request, user_id):
     new_community = CommunitySerializer(data=request.data)
     
@@ -64,7 +121,6 @@ def create_community(request, user_id):
     return Response(new_community.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-# @firebase_auth_required
 def get_user_communities(request, user_id):
     communities = Join.objects.filter(user_id = user_id)
     serializer = JoinSerializer(communities, many = True)
@@ -80,7 +136,6 @@ def get_user_communities(request, user_id):
     return Response(community_datas)
 
 @api_view(['POST'])
-# @firebase_auth_required
 def create_join(request):
     new_join = JoinSerializer(data = request.data)
     if new_join.is_valid():
@@ -89,7 +144,6 @@ def create_join(request):
     return Response(new_join.errors, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])
-# @firebase_auth_required
 def create_post(request):
     new_post = PostsSerializer(data = request.data)
     if new_post.is_valid():
@@ -98,14 +152,12 @@ def create_post(request):
     return Response(new_post.errors, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-# @firebase_auth_required
 def get_posts(request, comm_id):
     posts = Posts.objects.filter(comm_id= comm_id)
     serializer = PostsSerializer(posts, many = True)
     return Response(serializer.data)
 
 @api_view(['POST'])
-# @firebase_auth_required
 def create_offer(request):
     new_offer = OffersSerializer(data = request.data)
     if new_offer.is_valid():
@@ -114,7 +166,6 @@ def create_offer(request):
     return Response(new_offer.errors, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-# @firebase_auth_required
 def get_offers(request, comm_id):
     offers = Offers.objects.filter(comm_id= comm_id)
     serializer = OffersSerializer(offers, many = True)
@@ -127,12 +178,12 @@ def get_offers(request, comm_id):
         offer_data['offer_type'] = data['offer_type']
         offer_data['title'] = data['title']
         offer_data['description'] = data['description']
+        offer_data['status'] = data['status']
         offer_datas.append(offer_data)
         
     return Response(offer_datas)
 
 @api_view(['GET'])
-# @firebase_auth_required
 def get_offers_for_user(request, user_id, comm_id):
     offers = Offers.objects.filter(user_id = user_id).filter(comm_id = comm_id)
     serializer = OffersSerializer(offers, many = True)
@@ -145,12 +196,12 @@ def get_offers_for_user(request, user_id, comm_id):
         offer_data['offer_type'] = data['offer_type']
         offer_data['title'] = data['title']
         offer_data['description'] = data['description']
+        offer_data['status'] = data['status']
         offer_datas.append(offer_data)
         
     return Response(offer_datas)
 
 @api_view(['POST'])
-# @firebase_auth_required
 def create_request(request):
     create_request = RequestsSerializer(data = request.data)
     if create_request.is_valid():
@@ -159,7 +210,6 @@ def create_request(request):
     return Response(create_request.errors, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-# @firebase_auth_required
 def view_public_requests(request, comm_id):
     requests = Requests.objects.filter(comm_id=comm_id).filter(offer_id = None)
     serializer = RequestsSerializer(requests, many = True)
@@ -180,12 +230,12 @@ def view_public_requests(request, comm_id):
             request_data['from_date'] = data['from_date']
         if data['to_date']:
             request_data['to_date'] = data['to_date']
+        request_data['status'] = data['status']
         request_datas.append(request_data)
     return Response(request_datas)
 
 
 @api_view(['GET'])
-# @firebase_auth_required
 def view_user_requests(request, comm_id, user_id):
     requests = Requests.objects.filter(comm_id = comm_id).filter(user_id=user_id)
     serializer = RequestsSerializer(requests, many = True)
@@ -206,11 +256,11 @@ def view_user_requests(request, comm_id, user_id):
             request_data['from_date'] = data['from_date']
         if data['to_date']:
             request_data['to_date'] = data['to_date']
+        request_data['status'] = data['status']
         request_datas.append(request_data)
     return Response(request_datas)
 
 @api_view(['GET'])
-# @firebase_auth_required
 def view_request_from_neighbours(request, offer_id):
     requests = Requests.objects.filter(offer_id = offer_id)
     serializer = RequestsSerializer(requests, many = True)
@@ -231,11 +281,11 @@ def view_request_from_neighbours(request, offer_id):
             request_data['from_date'] = data['from_date']
         if data['to_date']:
             request_data['to_date'] = data['to_date']
+        request_data['status'] = data['status']
         request_datas.append(request_data)
     return Response(request_datas)
 
 @api_view(['POST'])
-# @firebase_auth_required
 def send_join_request(request):
     new_join_request = JoinRequestSerializer(data = request.data)
     if new_join_request.is_valid():
@@ -244,7 +294,6 @@ def send_join_request(request):
     return Response(new_join_request.errors, status = status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET'])
-# @firebase_auth_required
 def view_join_requests(request, comm_id, user_id):
     join_requests = JoinRequest.objects.filter(comm_id= comm_id).filter(admin_id = user_id)
     serializer = JoinRequestSerializer(join_requests, many = True)
@@ -265,10 +314,9 @@ def view_join_requests(request, comm_id, user_id):
 
 
 @api_view(['PUT'])
-# @firebase_auth_required
 def update_offer_status(request, offer_id, status):
     try:
-        offer = Offers.objects.get(id=offer_id)
+        offer = Offers.objects.get(id=int(offer_id))
         offer.status = status
         offer.save()
         return Response({'message': 'Status updated'}, status=200)
@@ -277,11 +325,12 @@ def update_offer_status(request, offer_id, status):
     
 
 @api_view(['PUT'])
-# @firebase_auth_required
-def update_request_status(request, request_id, status, user_id):
+def update_request_status(request, request_id, status, offer_id):
     try:
         request = Requests.objects.get(id=request_id)
+        offer = Offers.objects.get(pk=offer_id)
         request.status = status
+        request.offer = offer
         request.save()
         return Response({'message': 'Status updated'}, status=200)
     except Offers.DoesNotExist:
@@ -300,7 +349,6 @@ def haversine(lat1, lon1, lat2, lon2):
 
 
 @api_view(['GET'])
-# @firebase_auth_required
 def get_communities(request, latitude, longtitude):
     try:
         user_lat = float(latitude)
@@ -321,4 +369,3 @@ def get_communities(request, latitude, longtitude):
 
     serializer = CommunitySerializer(nearby, many=True)
     return Response(serializer.data)
-    
