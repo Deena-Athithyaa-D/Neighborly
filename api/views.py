@@ -71,7 +71,7 @@ class Auth0LoginView(APIView):
             return Response({
                 'success': True,
                 'email': user.email,
-                'uuid': str(user.uuid)
+                'uuid': str(user.id)
             })
 
         except jwt.ExpiredSignatureError:
@@ -96,8 +96,13 @@ def create_profile(request):
 
 @api_view(['GET'])
 def get_profile(request, user_id):
-    profile = Profile.objects.get(uuid = user_id)
-    serializer = ProfileSerializer(profile)
+    try:
+        profile = Profile.objects.get(uuid = user_id)
+        serializer = ProfileSerializer(profile)
+    except:
+        return Response({
+                "status":300
+            })
     return Response(serializer.data)
 
 @api_view(['POST'])
