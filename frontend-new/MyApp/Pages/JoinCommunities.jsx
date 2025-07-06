@@ -13,6 +13,7 @@ import {
 import MapView, { Marker, PROVIDER_GOOGLE, Callout } from "react-native-maps";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
+import * as SecureStore from "expo-secure-store";
 import { MaterialIcons } from "@expo/vector-icons";
 
 export default function JoinCommunities() {
@@ -28,11 +29,23 @@ export default function JoinCommunities() {
   const [referralCode, setReferralCode] = useState("");
   const [pendingCommId, setPendingCommId] = useState(null);
   const [pendingCommName, setPendingCommName] = useState("");
+  const [userId, setUserId] = useState(null);
   const mapRef = useRef(null);
   const navigation = useNavigation();
 
-  // 🔁 Hardcoded user ID for now (replace with real data later)
-  const userId = "1959af06-26aa-4d18-b5af-96330b2497fa";
+  const checkAuth = async () => {
+    try {
+      const uuid = await SecureStore.getItemAsync("uuid");
+      if (!uuid) {
+        navigation.navigate("Auth");
+        return;
+      }
+      setUserId(uuid);
+    } catch (error) {
+      console.error("Error checking auth:", error);
+      navigation.navigate("Auth");
+    }
+  };
 
   const getUserLocation = async () => {
     try {
@@ -50,7 +63,7 @@ export default function JoinCommunities() {
       setUserLocation(userLoc);
 
       const response = await fetch(
-        `https://4d71-202-53-4-31.ngrok-free.app/api/get_communities/${userLoc.latitude}/${userLoc.longitude}`
+        `https://34ed-171-79-48-24.ngrok-free.app/api/get_communities/${userLoc.latitude}/${userLoc.longitude}`
       );
 
       const data = await response.json();
@@ -82,8 +95,14 @@ export default function JoinCommunities() {
   };
 
   useEffect(() => {
-    getUserLocation();
+    checkAuth();
   }, []);
+
+  useEffect(() => {
+    if (userId) {
+      getUserLocation();
+    }
+  }, [userId]);
 
   useEffect(() => {
     if (userLocation) {
@@ -106,9 +125,14 @@ export default function JoinCommunities() {
   };
 
   const joinCommunity = async (comm_id, referral_code) => {
+    if (!userId) {
+      Alert.alert("Error", "User not authenticated");
+      return;
+    }
+
     try {
       const res = await fetch(
-        "https://4d71-202-53-4-31.ngrok-free.app/api/create_join",
+        "https://34ed-171-79-48-24.ngrok-free.app/api/create_join",
         {
           method: "POST",
           headers: {
@@ -126,7 +150,7 @@ export default function JoinCommunities() {
       const result = await res.json();
 
       if (res.ok) {
-        Alert.alert("Joined!", `You’ve successfully joined ${pendingCommName}`);
+        Alert.alert("Joined!", `You've successfully joined ${pendingCommName}`);
         setReferralModalVisible(false);
         setReferralCode("");
         navigation.navigate("MainTabs", { screen: "Home" });
@@ -147,6 +171,14 @@ export default function JoinCommunities() {
       <Text style={{ color: "#666" }}>{item.location}</Text>
     </TouchableOpacity>
   );
+
+  if (!userId) {
+    return (
+      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+        <ActivityIndicator size="large" color="#6C63FF" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
