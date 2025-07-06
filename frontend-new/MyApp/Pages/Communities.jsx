@@ -11,9 +11,12 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
+  Image,
 } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
+import * as SecureStore from "expo-secure-store";
 
 export default function Communities() {
   const [selectedTitle, setSelectedTitle] = useState("Communities Near You");
@@ -21,9 +24,28 @@ export default function Communities() {
   const [communityName, setCommunityName] = useState("");
   const [userLocation, setUserLocation] = useState(null);
   const [listData, setListData] = useState([]);
+  const [user_id, setUser_id] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigation = useNavigation();
 
-  const user_id = "17d45b9c-be88-4445-9cb0-7fee00ef8b18"; // Hardcoded
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const uuid = await SecureStore.getItemAsync("uuid");
+        if (!uuid) {
+          navigation.navigate("Login");
+          return;
+        }
+        setUser_id(uuid);
+      } catch (error) {
+        console.error("Error checking auth:", error);
+        navigation.navigate("Auth");
+      }
+    };
+
+    checkAuth();
+  }, [navigation]);
 
   const getUserLocation = async () => {
     try {
@@ -43,43 +65,64 @@ export default function Communities() {
       console.error("Location error:", err);
     }
   };
-  useEffect(() => {
-    const getCommunities = async () => {
-      try {
-        const res = await fetch(
-          `https://4d71-202-53-4-31.ngrok-free.app//api/get_user_communities/${user_id}`
-        );
-        const data = await res.json();
-        if (Array.isArray(data)) {
+
+  const fetchCommunities = async () => {
+    if (!user_id) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      console.log(user_id);
+      const res = await fetch(
+        `https://34ed-171-79-48-24.ngrok-free.app/api/get_user_communities/${user_id}`
+      );
+      
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+      
+      const data = await res.json();
+      
+      if (Array.isArray(data)) {
+        if (data.length === 0) {
+          setListData([]);
+          setError("You're not part of any communities yet. Create or join one to get started!");
+        } else {
           const formatted = data.map((item, idx) => ({
             id: item.id?.toString() || idx.toString(),
             name: item.name,
           }));
           setListData(formatted);
-          console.log(data);
-        } else {
-          console.warn("Unexpected API response format:", data);
         }
-      } catch (err) {
-        console.error("Error fetching communities:", err);
+      } else {
+        throw new Error("Unexpected API response format");
       }
-    };
+    } catch (err) {
+      console.error("Error fetching communities:", err);
+      setError("Failed to load communities. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    getCommunities();
-  }, [communityName]);
+  useEffect(() => {
+    fetchCommunities();
+  }, [communityName, user_id]);
 
   useEffect(() => {
     const init = async () => {
+      if (!user_id) return;
       await getUserLocation();
-      await fetchCommunities();
     };
     init();
-  }, []);
+  }, [user_id]);
 
   useFocusEffect(
     useCallback(() => {
       setSelectedTitle("Communities Near You");
-    }, [])
+      fetchCommunities();
+    }, [user_id])
   );
 
   const handleSelect = (id, name) => {
@@ -88,6 +131,8 @@ export default function Communities() {
   };
 
   const handleCreateCommunity = async () => {
+    if (!user_id) return;
+    
     const name = communityName.trim();
     if (!name || !userLocation) {
       Alert.alert("Please enter a community name and ensure location access.");
@@ -104,7 +149,7 @@ export default function Communities() {
 
     try {
       const res = await fetch(
-        `https://4d71-202-53-4-31.ngrok-free.app//api/create_community/${user_id}`,
+        `https://34ed-171-79-48-24.ngrok-free.app/api/create_community/${user_id}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -116,13 +161,13 @@ export default function Communities() {
         Alert.alert("Success", "Community created!");
         setCommunityName("");
         setIsModalVisible(false);
-        // await  getCommunities();
+        await fetchCommunities();
       } else {
-        Alert.alert("Failed to create community.");
+        throw new Error("Failed to create community");
       }
     } catch (err) {
       console.error("Create community error:", err);
-      Alert.alert("Error creating community.");
+      Alert.alert("Error", "Could not create community. Please try again.");
     }
   };
 
@@ -138,6 +183,14 @@ export default function Communities() {
       <Text style={styles.circleItemText}>{item.name}</Text>
     </TouchableOpacity>
   );
+
+  if (!user_id) {
+    return (
+      <SafeAreaView style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color="#6C63FF" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -158,13 +211,35 @@ export default function Communities() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={listData}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        numColumns={2}
-      />
+      {loading ? (
+        <View style={[styles.center, { flex: 1 }]}>
+          <ActivityIndicator size="large" color="#6C63FF" />
+        </View>
+      ) : error ? (
+        <View style={[styles.center, { flex: 1, padding: 20 }]}>
+          <Text>No communities at present!</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity
+            style={styles.ctaButton}
+            onPress={() => setIsModalVisible(true)}
+          >
+            <Text style={styles.ctaButtonText}>Create Your First Community</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={listData}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          numColumns={2}
+          ListEmptyComponent={
+            <View style={[styles.center, { flex: 1 }]}>
+              <Text style={styles.emptyText}>No communities found</Text>
+            </View>
+          }
+        />
+      )}
 
       <Modal visible={isModalVisible} transparent animationType="slide">
         <KeyboardAvoidingView
@@ -204,6 +279,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#ECECFF",
   },
+  center: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
   title: {
     fontSize: 20,
     fontWeight: "bold",
@@ -233,7 +312,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   circleItem: {
-    backgroundColor: "#D6D1FF", // Darker shade of lavender
+    backgroundColor: "#D6D1FF",
     borderRadius: 50,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -247,14 +326,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
   },
-
   circleItemText: {
-    color: "#000", // Ensures visibility
+    color: "#000",
     fontWeight: "bold",
     fontSize: 16,
     textAlign: "center",
   },
-
   modalContainer: {
     flex: 1,
     justifyContent: "center",
@@ -298,5 +375,32 @@ const styles = StyleSheet.create({
   modalCancelText: {
     color: "#333",
     fontWeight: "bold",
+  },
+  emptyImage: {
+    width: 200,
+    height: 200,
+    marginBottom: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#4C3E99",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: "#4C3E99",
+    textAlign: "center",
+  },
+  ctaButton: {
+    backgroundColor: "#6C63FF",
+    padding: 15,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  ctaButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
