@@ -3,7 +3,10 @@
     "name": "MyApp",
     "slug": "MyApp",
     "version": "1.0.0",
+    "originalFullName": "@deena2005/MyApp",
+    "owner": "deena2005",
     "orientation": "portrait",
+    "scheme": "myapp",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -16,6 +19,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.deena2005.MyApp",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -24,6 +28,12 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": ["expo-web-browser", "expo-secure-store"],
+    "extra": {
+      "eas": {
+        "projectId": "624895ad-8845-4282-b385-f48975305e87"
+      }
     }
   }
 }
