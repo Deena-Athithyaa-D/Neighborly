@@ -7,106 +7,67 @@ import {
   StyleSheet,
   Animated,
   Easing,
+  Image,
   RefreshControl,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as SecureStore from "expo-secure-store";
-import { useNavigation } from "@react-navigation/native";
 
 const Activity = () => {
   const [activeTab, setActiveTab] = useState("offerings");
   const [expandedItems, setExpandedItems] = useState({});
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [userId, setUserId] = useState(null);
-  const navigation = useNavigation();
-
-  // Animation values
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
 
-  // Data states
   const [offeringsData, setOfferingsData] = useState([]);
   const [requestsData, setRequestsData] = useState([]);
   const [interestedUsers, setInterestedUsers] = useState({});
 
   useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const uuid = await SecureStore.getItemAsync("uuid");
-        if (!uuid) {
-          navigation.navigate("Login");
-          return;
-        }
-        setUserId(uuid);
-      } catch (error) {
-        console.error("Error checking auth:", error);
-        navigation.navigate("Login");
-      }
-    };
-
-    checkAuth();
-  }, [navigation]);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const animateAndFetch = async () => {
-      await fetchData();
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 0,
-          duration: 800,
-          easing: Easing.out(Easing.back(2)),
-          useNativeDriver: true,
-        }),
-      ]).start();
-    };
-
-    animateAndFetch();
-  }, [userId]);
+    fetchData();
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 800,
+        easing: Easing.out(Easing.back(2)),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
   const fetchData = async () => {
     try {
-      setLoading(true);
-      setError(null);
-
       // Fetch offerings data
       const offersRes = await fetch(
-        `https://34ed-171-79-48-24.ngrok-free.app/api/get_offers_for_user/${userId}/1`
+        "https://89c6e298ccbe.ngrok-free.app/api/get_offers_for_user/1959af06-26aa-4d18-b5af-96330b2497fa/1"
       );
       if (!offersRes.ok) throw new Error("Failed to fetch offerings");
       const offersData = await offersRes.json();
+      setOfferingsData(offersData);
 
       // Fetch requests data
       const requestsRes = await fetch(
-        `https://34ed-171-79-48-24.ngrok-free.app/api/view_user_requests/1/${userId}`
+        "https://89c6e298ccbe.ngrok-free.app/api/view_user_requests/1/1959af06-26aa-4d18-b5af-96330b2497fa"
       );
       if (!requestsRes.ok) throw new Error("Failed to fetch requests");
       const requestsData = await requestsRes.json();
-
-      setOfferingsData(offersData);
       setRequestsData(requestsData);
     } catch (err) {
       console.error(err);
-      setError("Failed to fetch data. Please try again.");
-    } finally {
-      setLoading(false);
+      Alert.alert("Error", "Failed to fetch data");
     }
   };
 
   const fetchInterestedUsers = async (offerId) => {
     try {
       const res = await fetch(
-        `https://34ed-171-79-48-24.ngrok-free.app/api/view_request_from_neighbours/${offerId}`
+        `https://89c6e298ccbe.ngrok-free.app/api/view_request_from_neighbours/${offerId}`
       );
       if (!res.ok) throw new Error("Failed to fetch interested users");
       const data = await res.json();
@@ -127,6 +88,7 @@ const Activity = () => {
   };
 
   const toggleExpand = async (id) => {
+    // If expanding, fetch interested users
     if (!expandedItems[id]) {
       await fetchInterestedUsers(id);
     }
@@ -136,18 +98,11 @@ const Activity = () => {
     }));
   };
 
-  const handleResponse = async (offer_id, request_id, status) => {
-    if (!userId) {
-      navigation.navigate("Login");
-      return;
-    }
-
+  const handleResponse = async (offer_id, request_id, user_id, status) => {
     try {
-      setLoading(true);
-      
       // First PUT request
       const firstResponse = await fetch(
-        `https://34ed-171-79-48-24.ngrok-free.app/api/update_offer_status/${offer_id}/${status}`,
+        `https://89c6e298ccbe.ngrok-free.app/api/update_offer_status/${offer_id}/${status}`,
         {
           method: "PUT",
           headers: {
@@ -155,14 +110,16 @@ const Activity = () => {
           },
         }
       );
-
+      console.log(
+        `https://89c6e298ccbe.ngrok-free.app/api/update_offer_status/${offer_id}/${status}`
+      );
       if (!firstResponse.ok) {
-        throw new Error("Failed to update offer status");
+        throw new Error("First request failed");
       }
 
       // Second PUT request
       const secondResponse = await fetch(
-        `https://34ed-171-79-48-24.ngrok-free.app/api/update_request_status/${request_id}/${status}/${offer_id}`,
+        `https://89c6e298ccbe.ngrok-free.app/api/update_request_status/${request_id}/${status}/${offer_id}`,
         {
           method: "PUT",
           headers: {
@@ -170,23 +127,26 @@ const Activity = () => {
           },
         }
       );
-
+      console.log(
+        `https://89c6e298ccbe.ngrok-free.app/api/update_request_status/${request_id}/${status}/${offer_id}`
+      );
       if (!secondResponse.ok) {
-        throw new Error("Failed to update request status");
+        throw new Error("Second request failed");
       }
 
-      Alert.alert("Success", "Response submitted successfully!");
+      Alert.alert("Success", "Both requests completed successfully!");
+
+      // Refresh data after successful updates
       await fetchInterestedUsers(offer_id);
     } catch (err) {
       console.error("Error in handleResponse:", err);
-      Alert.alert("Error", err.message || "Failed to submit response");
-    } finally {
-      setLoading(false);
+      Alert.alert("Error", err.message || "Failed to complete requests");
     }
   };
 
   const renderOfferingItem = ({ item }) => {
     const users = interestedUsers[item.id] || [];
+    const offer_id = item.id;
     return (
       <Animated.View
         style={[
@@ -239,7 +199,9 @@ const Activity = () => {
                   <View style={styles.userInfoContainer}>
                     <View style={styles.userAvatarPlaceholder}>
                       <Text style={styles.avatarText}>
-                        {user.user_name?.charAt(0).toUpperCase() || "U"}
+                        {user.user_name
+                          ? user.user_name.charAt(0).toUpperCase()
+                          : "U"}
                       </Text>
                     </View>
                     <View style={styles.userInfo}>
@@ -258,13 +220,27 @@ const Activity = () => {
                     <View style={styles.actionButtons}>
                       <TouchableOpacity
                         style={[styles.actionButton, styles.acceptButton]}
-                        onPress={() => handleResponse(item.id, user.id, 2)}
+                        onPress={() =>
+                          handleResponse(
+                            offer_id,
+                            item.id,
+                            "1959af06-26aa-4d18-b5af-96330b2497fa",
+                            2
+                          )
+                        }
                       >
                         <Text style={styles.actionButtonText}>Accept</Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.actionButton, styles.declineButton]}
-                        onPress={() => handleResponse(item.id, user.id, 0)}
+                        onPress={() =>
+                          handleResponse(
+                            offer_id,
+                            item.id,
+                            "1959af06-26aa-4d18-b5af-96330b2497fa",
+                            0
+                          )
+                        }
                       >
                         <Text style={styles.actionButtonText}>Decline</Text>
                       </TouchableOpacity>
@@ -289,38 +265,30 @@ const Activity = () => {
     );
   };
 
-  const renderRequestItem = ({ item }) => (
-    <Animated.View
-      style={[
-        styles.card,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
-    >
-      <View style={styles.cardContent}>
-        <Text style={styles.typeBadge}>{item.request_type}</Text>
-        <Text style={styles.title}>{item.title}</Text>
-        <Text style={styles.description}>{item.description}</Text>
-        <View style={styles.timeDateContainer}>
-          <Text style={styles.timeDate}>
-            {item.from_date} {item.from_time} → {item.to_date} {item.to_time}
-          </Text>
-        </View>
-      </View>
-    </Animated.View>
-  );
-
-  if (!userId) {
+  const renderRequestItem = ({ item }) => {
     return (
-      <View style={[styles.container, styles.center]}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-      </View>
+      <Animated.View
+        style={[
+          styles.card,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <View style={styles.cardContent}>
+          <Text style={styles.typeBadge}>{item.request_type}</Text>
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.description}>{item.description}</Text>
+          <View style={styles.timeDateContainer}>
+            <Text style={styles.timeDate}>
+              {item.from_date} {item.from_time} → {item.to_date} {item.to_time}
+            </Text>
+          </View>
+        </View>
+      </Animated.View>
     );
-  }
-
-  const currentData = activeTab === "offerings" ? offeringsData : requestsData;
+  };
 
   return (
     <View style={styles.container}>
@@ -366,47 +334,26 @@ const Activity = () => {
       </View>
 
       {/* Content */}
-      {loading && currentData.length === 0 ? (
-        <View style={[styles.center, { flex: 1 }]}>
-          <ActivityIndicator size="large" color="#4CAF50" />
-        </View>
-      ) : error ? (
-        <View style={[styles.center, { flex: 1 }]}>
-          <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={fetchData}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <FlatList
-          data={currentData}
-          renderItem={
-            activeTab === "offerings" ? renderOfferingItem : renderRequestItem
-          }
-          keyExtractor={(item) => item.id.toString()}
-          contentContainerStyle={[
-            styles.listContent,
-            currentData.length === 0 && styles.emptyListContent,
-          ]}
-          style={styles.content}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              colors={["#4CAF50"]}
-              tintColor="#4CAF50"
-            />
-          }
-          ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              No {activeTab === "offerings" ? "offerings" : "requests"} found
-            </Text>
-          }
-        />
-      )}
+      <FlatList
+        data={activeTab === "offerings" ? offeringsData : requestsData}
+        renderItem={
+          activeTab === "offerings" ? renderOfferingItem : renderRequestItem
+        }
+        keyExtractor={(item) => item.id.toString()}
+        contentContainerStyle={styles.listContent}
+        style={styles.content}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={["#4CAF50"]}
+            tintColor="#4CAF50"
+          />
+        }
+        ListEmptyComponent={
+          <Text style={styles.emptyText}>No {activeTab} found</Text>
+        }
+      />
     </View>
   );
 };
@@ -415,10 +362,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f8f9fa",
-  },
-  center: {
-    justifyContent: "center",
-    alignItems: "center",
   },
   header: {
     padding: 20,
@@ -469,10 +412,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 20,
-  },
-  emptyListContent: {
-    flex: 1,
-    justifyContent: "center",
   },
   card: {
     backgroundColor: "white",
@@ -611,23 +550,6 @@ const styles = StyleSheet.create({
     marginTop: 50,
     fontSize: 16,
     color: "#6c757d",
-  },
-  errorText: {
-    fontSize: 16,
-    color: "#f44336",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: "#4CAF50",
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 10,
-  },
-  retryButtonText: {
-    color: "white",
-    fontWeight: "bold",
-    fontSize: 16,
   },
 });
 

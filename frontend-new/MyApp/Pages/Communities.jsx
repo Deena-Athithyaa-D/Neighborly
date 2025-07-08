@@ -12,7 +12,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Image,
 } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
@@ -24,28 +23,10 @@ export default function Communities() {
   const [communityName, setCommunityName] = useState("");
   const [userLocation, setUserLocation] = useState(null);
   const [listData, setListData] = useState([]);
-  const [user_id, setUser_id] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigation = useNavigation();
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const uuid = await SecureStore.getItemAsync("uuid");
-        if (!uuid) {
-          navigation.navigate("Login");
-          return;
-        }
-        setUser_id(uuid);
-      } catch (error) {
-        console.error("Error checking auth:", error);
-        navigation.navigate("Auth");
-      }
-    };
-
-    checkAuth();
-  }, [navigation]);
 
   const getUserLocation = async () => {
     try {
@@ -67,27 +48,28 @@ export default function Communities() {
   };
 
   const fetchCommunities = async () => {
-    if (!user_id) return;
-    
+    if (!userId) return;
+
     setLoading(true);
     setError(null);
-    
+
     try {
-      console.log(user_id);
       const res = await fetch(
-        `https://34ed-171-79-48-24.ngrok-free.app/api/get_user_communities/${user_id}`
+        `https://34ed-171-79-48-24.ngrok-free.app/api/get_user_communities/${userId}`
       );
-      
+
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
-      
+
       const data = await res.json();
-      
+
       if (Array.isArray(data)) {
         if (data.length === 0) {
           setListData([]);
-          setError("You're not part of any communities yet. Create or join one to get started!");
+          setError(
+            "You're not part of any communities yet. Create or join one to get started!"
+          );
         } else {
           const formatted = data.map((item, idx) => ({
             id: item.id?.toString() || idx.toString(),
@@ -106,35 +88,57 @@ export default function Communities() {
     }
   };
 
-  useEffect(() => {
-    fetchCommunities();
-  }, [communityName, user_id]);
+  const init = async () => {
+    const storedUuid = await SecureStore.getItemAsync("uuid");
+    if (storedUuid) {
+      setUserId(storedUuid);
+      await getUserLocation();
+    } else {
+      Alert.alert("Error", "User not logged in or UUID not found.");
+    }
+  };
 
   useEffect(() => {
-    const init = async () => {
-      if (!user_id) return;
-      await getUserLocation();
-    };
     init();
-  }, [user_id]);
+  }, []);
+
+  useEffect(() => {
+    if (communityName !== "" && userId) {
+      fetchCommunities();
+    }
+  }, [communityName]);
+
+  useEffect(() => {
+    if (userId) {
+      fetchCommunities();
+    }
+  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
       setSelectedTitle("Communities Near You");
-      fetchCommunities();
-    }, [user_id])
+      if (userId) fetchCommunities();
+    }, [userId])
   );
 
-  const handleSelect = (id, name) => {
+  const saveToSecureStore = async (key, value) => {
+    try {
+      await SecureStore.setItemAsync(key, value);
+      console.log(`Saved ${value} to SecureStore`);
+    } catch (error) {
+      console.error("SecureStore error:", error);
+    }
+  };
+
+  const handleSelect = async (id, name) => {
     setSelectedTitle(name);
+    await saveToSecureStore("comm_id", id);
     navigation.navigate("MainTabs", { screen: "Home" });
   };
 
   const handleCreateCommunity = async () => {
-    if (!user_id) return;
-    
     const name = communityName.trim();
-    if (!name || !userLocation) {
+    if (!name || !userLocation || !userId) {
       Alert.alert("Please enter a community name and ensure location access.");
       return;
     }
@@ -144,12 +148,12 @@ export default function Communities() {
       location: "User Current Location",
       latitude: userLocation.latitude.toString(),
       longtitude: userLocation.longitude.toString(),
-      admin_id: user_id,
+      admin_id: userId,
     };
 
     try {
       const res = await fetch(
-        `https://34ed-171-79-48-24.ngrok-free.app/api/create_community/${user_id}`,
+        `https://89c6e298ccbe.ngrok-free.app/api/create_community/${userId}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -184,7 +188,7 @@ export default function Communities() {
     </TouchableOpacity>
   );
 
-  if (!user_id) {
+  if (!userId) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#6C63FF" />
@@ -223,7 +227,9 @@ export default function Communities() {
             style={styles.ctaButton}
             onPress={() => setIsModalVisible(true)}
           >
-            <Text style={styles.ctaButtonText}>Create Your First Community</Text>
+            <Text style={styles.ctaButtonText}>
+              Create Your First Community
+            </Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -233,11 +239,6 @@ export default function Communities() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           numColumns={2}
-          ListEmptyComponent={
-            <View style={[styles.center, { flex: 1 }]}>
-              <Text style={styles.emptyText}>No communities found</Text>
-            </View>
-          }
         />
       )}
 
@@ -275,14 +276,7 @@ export default function Communities() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#ECECFF",
-  },
-  center: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  container: { flex: 1, backgroundColor: "#ECECFF" },
   title: {
     fontSize: 20,
     fontWeight: "bold",
@@ -302,10 +296,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 20,
   },
-  topButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
+  topButtonText: { color: "#fff", fontWeight: "bold" },
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 30,
@@ -375,11 +366,6 @@ const styles = StyleSheet.create({
   modalCancelText: {
     color: "#333",
     fontWeight: "bold",
-  },
-  emptyImage: {
-    width: 200,
-    height: 200,
-    marginBottom: 20,
   },
   errorText: {
     fontSize: 16,
