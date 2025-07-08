@@ -97,13 +97,14 @@ def create_profile(request):
 @api_view(['GET'])
 def get_profile(request, user_id):
     try:
-        profile = Profile.objects.get(uuid = user_id)
-        serializer = ProfileSerializer(profile)
-    except:
-        return Response({
-                "status":300
-            })
-    return Response(serializer.data)
+        profile = Profile.objects.get(uuid=user_id)
+    except Profile.DoesNotExist:
+        return Response(
+            {"detail": "Profile not found."},
+            status=status.HTTP_404_NOT_FOUND
+        )
+    serializer = ProfileSerializer(profile)
+    return Response(serializer.data, status=status.HTTP_200_OK)
 
 @api_view(['POST'])
 def create_community(request, user_id):
