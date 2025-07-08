@@ -61,7 +61,7 @@ const ProfileForm = () => {
 
     try {
       const response = await fetch(
-        "https://34ed-171-79-48-24.ngrok-free.app/api/create_profile",
+        "https://neighborly-jek2.onrender.com/api/create_profile",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },

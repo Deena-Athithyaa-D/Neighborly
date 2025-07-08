@@ -10,19 +10,26 @@ import {
   Modal,
   TextInput,
   Platform,
+  Animated,
+  Easing,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Ionicons } from "@expo/vector-icons";
+import * as SecureStore from "expo-secure-store";
+import { useNavigation } from "@react-navigation/native";
 
 export default function ExchangeHub() {
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState("product");
   const [subactiveTab, setsubactiveTab] = useState("lend");
   const [openModal, setOpenModal] = useState(false);
   const [selectedRequestItem, setSelectedRequestItem] = useState(null);
+  const [userId, setUserId] = useState(null);
+  const [commId, setCommId] = useState(null);
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(50))[0];
 
   const [formData, setFormData] = useState({
-    user_id: "1959af06-26aa-4d18-b5af-96330b2497fa",
-    comm_id: "1",
-    offer_type: "product",
     title: "",
     description: "",
     fromDate: "",
@@ -41,32 +48,64 @@ export default function ExchangeHub() {
   const [lend, setLend] = useState([]);
 
   useEffect(() => {
-    const fetchDetails = async () => {
+    const init = async () => {
       try {
-        const data = await fetch(
-          "https://89c6e298ccbe.ngrok-free.app//api/get_offers/1"
-        );
-        const response = await data.json();
-        setLend(response);
-        console.log(response);
-      } catch (err) {
-        console.log(err);
+        const storedUuid = await SecureStore.getItemAsync("uuid");
+        const storedCommId = await SecureStore.getItemAsync("comm_id");
+
+        if (!storedUuid || !storedCommId) {
+          Alert.alert("Session Expired", "Please log in again");
+          navigation.navigate("Auth");
+          return;
+        }
+
+        setUserId(storedUuid);
+        setCommId(storedCommId);
+        fetchData(storedCommId);
+
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 800,
+            easing: Easing.out(Easing.back(2)),
+            useNativeDriver: true,
+          }),
+        ]).start();
+      } catch (error) {
+        console.error("Initialization error:", error);
+        Alert.alert("Error", "Failed to initialize. Please try again.");
+        navigation.navigate("Auth");
       }
     };
-    const fetchDetails1 = async () => {
-      try {
-        const data = await fetch(
-          "https://89c6e298ccbe.ngrok-free.app//api/view_public_requests/1"
-        );
-        const response = await data.json();
-        setReq(response);
-      } catch (err) {
-        console.log(err);
-      }
-    };
-    fetchDetails();
-    fetchDetails1();
-  }, [subactiveTab]);
+
+    init();
+  }, []);
+
+  const fetchData = async (communityId) => {
+    try {
+      const offersRes = await fetch(
+        `https://neighborly-jek2.onrender.com/api/get_offers/${communityId}`
+      );
+      if (!offersRes.ok) throw new Error("Failed to fetch offers");
+      const offersData = await offersRes.json();
+      setLend(offersData);
+
+      const requestsRes = await fetch(
+        `https://neighborly-jek2.onrender.com/api/view_public_requests/${communityId}`
+      );
+      if (!requestsRes.ok) throw new Error("Failed to fetch requests");
+      const requestsData = await requestsRes.json();
+      setReq(requestsData);
+    } catch (err) {
+      console.error(err);
+      Alert.alert("Error", "Failed to fetch data");
+    }
+  };
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -75,9 +114,6 @@ export default function ExchangeHub() {
   const openNewModal = () => {
     setSelectedRequestItem(null);
     setFormData({
-      user_id: "1959af06-26aa-4d18-b5af-96330b2497fa",
-      comm_id: "1",
-      offer_type: activeTab,
       title: "",
       description: "",
       fromDate: "",
@@ -90,25 +126,28 @@ export default function ExchangeHub() {
 
   const handleSubmit = async () => {
     try {
+      if (!userId || !commId) {
+        throw new Error("User session expired. Please log in again.");
+      }
+
       const submissionData = {
-        user_id: formData.user_id,
-        comm_id: formData.comm_id,
+        user_id: userId,
+        comm_id: commId,
         title: formData.title,
         description: formData.description,
       };
 
       if (selectedRequestItem) {
-        submissionData.request_type = formData.offer_type;
+        submissionData.request_type = activeTab;
         submissionData.from_date = formData.fromDate;
         submissionData.to_date = formData.toDate;
         submissionData.from_time = formData.fromTime;
         submissionData.to_time = formData.toTime;
         submissionData.offer_id = selectedRequestItem.id;
-        submissionData.user_name = selectedRequestItem.user_name;
       } else if (subactiveTab === "lend") {
-        submissionData.offer_type = formData.offer_type;
+        submissionData.offer_type = activeTab;
       } else {
-        submissionData.request_type = formData.offer_type;
+        submissionData.request_type = activeTab;
         submissionData.from_date = formData.fromDate;
         submissionData.to_date = formData.toDate;
         submissionData.from_time = formData.fromTime;
@@ -117,8 +156,8 @@ export default function ExchangeHub() {
 
       const endpoint =
         selectedRequestItem || subactiveTab === "request"
-          ? "https://89c6e298ccbe.ngrok-free.app//api/create_request"
-          : "https://89c6e298ccbe.ngrok-free.app//api/create_offer";
+          ? "https://neighborly-jek2.onrender.com/api/create_request"
+          : "https://neighborly-jek2.onrender.com/api/create_offer";
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -127,19 +166,16 @@ export default function ExchangeHub() {
         },
         body: JSON.stringify(submissionData),
       });
-      console.log(JSON.stringify(submissionData));
+
       const data = await response.json();
 
       if (!response.ok) throw new Error(data.message || "Failed to submit");
 
-      Alert.alert("Success", `Request submitted successfully!`, [
+      Alert.alert("Success", "Request submitted successfully!", [
         {
           text: "OK",
           onPress: () => {
             setFormData({
-              user_id: "1959af06-26aa-4d18-b5af-96330b2497fa",
-              comm_id: "2",
-              offer_type: "product",
               title: "",
               description: "",
               fromDate: "",
@@ -149,11 +185,65 @@ export default function ExchangeHub() {
             });
             setSelectedRequestItem(null);
             setOpenModal(false);
+            fetchData(commId);
           },
         },
       ]);
     } catch (error) {
       console.error("Submission error:", error);
+      Alert.alert("Error", error.message || "Something went wrong");
+    }
+  };
+
+  const handleLend = async (item) => {
+    try {
+      if (!userId || !commId) {
+        throw new Error("User session expired. Please log in again.");
+      }
+
+      const offerRes = await fetch(
+        "https://neighborly-jek2.onrender.com/api/create_offer",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            comm_id: commId,
+            offer_type: item.request_type,
+            title: item.title,
+            description: item.description,
+          }),
+        }
+      );
+
+      const offerData = await offerRes.json();
+
+      if (!offerRes.ok) {
+        throw new Error(offerData.message || "Failed to create offer");
+      }
+
+      const offer_id = offerData.id;
+
+      const updateRes = await fetch(
+        `https://neighborly-jek2.onrender.com/api/update_request_status/${item.id}/2/${offer_id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!updateRes.ok) {
+        throw new Error("Failed to update request status");
+      }
+
+      Alert.alert("Success", "Lend offer sent and status updated!");
+      fetchData(commId);
+    } catch (error) {
+      console.error("Lend error:", error);
       Alert.alert("Error", error.message || "Something went wrong");
     }
   };
@@ -178,146 +268,153 @@ export default function ExchangeHub() {
     }
   };
 
+  const renderItem = ({ item }) => (
+    <Animated.View
+      style={[
+        styles.itemBox,
+        {
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        },
+      ]}
+    >
+      <View style={styles.itemContent}>
+        <View style={styles.typeBadge}>
+          <Text style={styles.typeBadgeText}>
+            {item.offer_type || item.request_type}
+          </Text>
+        </View>
+        <Text style={styles.itemTitle}>{item.title}</Text>
+        <Text style={styles.itemDescription}>{item.description}</Text>
+      </View>
+
+      {subactiveTab === "lend" ? (
+        <Pressable
+          style={styles.actionButton}
+          onPress={() => {
+            setSelectedRequestItem(item);
+            setFormData({
+              title: item.title,
+              description: item.description,
+            });
+            setOpenModal(true);
+          }}
+        >
+          <Text style={styles.actionButtonText}>Request</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          style={[styles.actionButton, styles.lendButton]}
+          onPress={() => handleLend(item)}
+        >
+          <Text style={styles.actionButtonText}>Lend</Text>
+        </Pressable>
+      )}
+    </Animated.View>
+  );
   return (
-    <View>
-      <View style={styles.pageTop}>
+    <View style={styles.container}>
+      {/* Header Tabs */}
+      <View style={styles.headerTabs}>
         <Pressable
+          style={[
+            styles.headerTab,
+            activeTab === "product" && styles.activeHeaderTab,
+          ]}
           onPress={() => setActiveTab("product")}
-          style={styles.pageTopLeft}
         >
-          <Text style={styles.buttonText}>Product</Text>
+          <Text
+            style={[
+              styles.headerTabText,
+              activeTab === "product" && styles.activeHeaderTabText,
+            ]}
+          >
+            Products
+          </Text>
         </Pressable>
         <Pressable
+          style={[
+            styles.headerTab,
+            activeTab === "service" && styles.activeHeaderTab,
+          ]}
           onPress={() => setActiveTab("service")}
-          style={styles.pageTopRight}
         >
-          <Text style={styles.buttonText}>Services</Text>
+          <Text
+            style={[
+              styles.headerTabText,
+              activeTab === "service" && styles.activeHeaderTabText,
+            ]}
+          >
+            Services
+          </Text>
         </Pressable>
       </View>
 
-      <View style={styles.subTab}>
+      {/* Sub Tabs */}
+      <View style={styles.subTabs}>
         <Pressable
+          style={[
+            styles.subTab,
+            subactiveTab === "lend" && styles.activeSubTab,
+          ]}
           onPress={() => setsubactiveTab("lend")}
-          style={styles.subButton}
         >
-          <Text style={styles.subButtonText}>Lend</Text>
+          <Text
+            style={[
+              styles.subTabText,
+              subactiveTab === "lend" && styles.activeSubTabText,
+            ]}
+          >
+            Lend/Offer
+          </Text>
         </Pressable>
         <Pressable
+          style={[
+            styles.subTab,
+            subactiveTab === "request" && styles.activeSubTab,
+          ]}
           onPress={() => setsubactiveTab("request")}
-          style={styles.subButton}
         >
-          <Text style={styles.subButtonText}>Request</Text>
+          <Text
+            style={[
+              styles.subTabText,
+              subactiveTab === "request" && styles.activeSubTabText,
+            ]}
+          >
+            Request
+          </Text>
         </Pressable>
       </View>
 
-      <View style={styles.contentBox}>
-        <FlatList
-          data={
-            subactiveTab === "lend"
-              ? lend.filter((item) => item.offer_type === activeTab)
-              : req.filter((item) => item.request_type === activeTab)
-          }
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.itemBox}>
-              <Text style={styles.itemText}>{item.title}</Text>
-              <Text style={styles.desc}>{item.description}</Text>
+      {/* Content */}
+      <FlatList
+        data={
+          subactiveTab === "lend"
+            ? lend.filter((item) => item.offer_type === activeTab)
+            : req.filter((item) => item.request_type === activeTab)
+        }
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={renderItem}
+        contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyState}>
+            <Ionicons name="list-outline" size={48} color="#d1d5db" />
+            <Text style={styles.emptyStateText}>
+              No {subactiveTab === "lend" ? "offers" : "requests"} found
+            </Text>
+          </View>
+        }
+      />
 
-              {subactiveTab === "lend" && (
-                <Pressable
-                  style={styles.requestBtn}
-                  onPress={() => {
-                    setSelectedRequestItem(item);
-                    setFormData({
-                      ...formData,
-                      title: item.title,
-                      description: item.description,
-                      offer_type: item.offer_type || item.request_type,
-                      offer_id: item.id,
-                    });
-                    setOpenModal(true);
-                  }}
-                >
-                  <Text style={styles.requestBtnText}>Request</Text>
-                </Pressable>
-              )}
-
-              {subactiveTab === "request" && (
-                <Pressable
-                  style={styles.requestBtn}
-                  onPress={async () => {
-                    try {
-                      const offerRes = await fetch(
-                        "https://89c6e298ccbe.ngrok-free.app/api/create_offer",
-                        {
-                          method: "POST",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                          body: JSON.stringify({
-                            user_id: "1959af06-26aa-4d18-b5af-96330b2497fa",
-                            comm_id: "1",
-                            offer_type: item.request_type,
-                            title: item.title,
-                            description: item.description,
-                          }),
-                        }
-                      );
-
-                      const offerData = await offerRes.json();
-
-                      if (!offerRes.ok) {
-                        throw new Error(
-                          offerData.message || "Failed to create offer"
-                        );
-                      }
-
-                      const offer_id = offerData.id; // Make sure your API returns this in response
-
-                      const updateRes = await fetch(
-                        `https://89c6e298ccbe.ngrok-free.app/api/update_request_status/${
-                          item.id
-                        }/2/${parseInt(offer_id)}`,
-                        {
-                          method: "PUT",
-                          headers: {
-                            "Content-Type": "application/json",
-                          },
-                        }
-                      );
-
-                      if (!updateRes.ok) {
-                        throw new Error("Failed to update request status");
-                      }
-
-                      Alert.alert(
-                        "Success",
-                        "Lend offer sent and status updated!"
-                      );
-                    } catch (error) {
-                      console.error("Lend error:", error);
-                      Alert.alert(
-                        "Error",
-                        error.message || "Something went wrong"
-                      );
-                    }
-                  }}
-                >
-                  <Text style={styles.requestBtnText}>Lend</Text>
-                </Pressable>
-              )}
-            </View>
-          )}
-        />
-      </View>
-
+      {/* Add Button */}
       <Pressable style={styles.addButton} onPress={openNewModal}>
-        <Text style={styles.addButtonText}>+</Text>
+        <Ionicons name="add" size={32} color="white" />
       </Pressable>
 
+      {/* Modal */}
       <Modal visible={openModal} animationType="slide" transparent>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
             <Text style={styles.modalTitle}>
               {selectedRequestItem
                 ? `Request: ${selectedRequestItem.title}`
@@ -326,64 +423,82 @@ export default function ExchangeHub() {
                 : "Make a Request"}
             </Text>
 
-            <Text style={styles.label}>Title:</Text>
+            <Text style={styles.label}>Title</Text>
             <TextInput
               value={formData.title}
               onChangeText={(text) => handleChange("title", text)}
               placeholder="Enter title"
               style={styles.input}
+              placeholderTextColor="#9ca3af"
             />
 
-            <Text style={styles.label}>Description:</Text>
+            <Text style={styles.label}>Description</Text>
             <TextInput
               value={formData.description}
               onChangeText={(text) => handleChange("description", text)}
               placeholder="Enter description"
-              style={styles.input}
+              style={[styles.input, styles.multilineInput]}
+              multiline
+              numberOfLines={3}
+              placeholderTextColor="#9ca3af"
             />
 
             {(subactiveTab === "request" || selectedRequestItem) && (
               <>
-                <Text style={styles.label}>From Date:</Text>
+                <Text style={styles.label}>From Date</Text>
                 <Pressable
                   onPress={() => showPicker("fromDate", "date")}
                   style={styles.input}
                 >
-                  <Text>{formData.fromDate || "Select Date"}</Text>
+                  <Text style={formData.fromDate ? {} : { color: "#9ca3af" }}>
+                    {formData.fromDate || "Select Date"}
+                  </Text>
                 </Pressable>
 
-                <Text style={styles.label}>To Date:</Text>
+                <Text style={styles.label}>To Date</Text>
                 <Pressable
                   onPress={() => showPicker("toDate", "date")}
                   style={styles.input}
                 >
-                  <Text>{formData.toDate || "Select Date"}</Text>
+                  <Text style={formData.toDate ? {} : { color: "#9ca3af" }}>
+                    {formData.toDate || "Select Date"}
+                  </Text>
                 </Pressable>
 
-                <Text style={styles.label}>From Time:</Text>
+                <Text style={styles.label}>From Time</Text>
                 <Pressable
                   onPress={() => showPicker("fromTime", "time")}
                   style={styles.input}
                 >
-                  <Text>{formData.fromTime || "Select Time"}</Text>
+                  <Text style={formData.fromTime ? {} : { color: "#9ca3af" }}>
+                    {formData.fromTime || "Select Time"}
+                  </Text>
                 </Pressable>
 
-                <Text style={styles.label}>To Time:</Text>
+                <Text style={styles.label}>To Time</Text>
                 <Pressable
                   onPress={() => showPicker("toTime", "time")}
                   style={styles.input}
                 >
-                  <Text>{formData.toTime || "Select Time"}</Text>
+                  <Text style={formData.toTime ? {} : { color: "#9ca3af" }}>
+                    {formData.toTime || "Select Time"}
+                  </Text>
                 </Pressable>
               </>
             )}
 
-            <View style={styles.row}>
-              <Pressable style={styles.submitBtn} onPress={handleSubmit}>
-                <Text style={styles.submitText}>Submit</Text>
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={handleCancel}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </Pressable>
-              <Pressable style={styles.cancelBtn} onPress={handleCancel}>
-                <Text style={styles.cancelText}>Cancel</Text>
+              <Pressable
+                style={[styles.modalButton, styles.submitButton]}
+                onPress={handleSubmit}
+              >
+                <Text style={styles.submitButtonText}>Submit</Text>
               </Pressable>
             </View>
           </View>
@@ -404,148 +519,215 @@ export default function ExchangeHub() {
 }
 
 const styles = StyleSheet.create({
-  requestBtn: {
-    backgroundColor: "#2979ff",
-    padding: 8,
-    borderRadius: 6,
-    marginTop: 10,
+  container: {
+    flex: 1,
+    backgroundColor: "#f9fafb",
   },
-  requestBtnText: {
-    color: "#fff",
-    textAlign: "center",
-    fontWeight: "500",
-  },
-  pageTop: {
+  headerTabs: {
     flexDirection: "row",
-    paddingVertical: 15,
+    backgroundColor: "#ffffff",
     borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
-    backgroundColor: "#fff",
+    borderBottomColor: "#e5e7eb",
   },
-  pageTopLeft: {
-    width: "50%",
+  headerTab: {
+    flex: 1,
+    paddingVertical: 16,
     alignItems: "center",
+    justifyContent: "center",
   },
-  pageTopRight: {
-    width: "50%",
-    alignItems: "center",
+  activeHeaderTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: "#6366f1",
   },
-  buttonText: {
-    fontWeight: "bold",
+  headerTabText: {
     fontSize: 16,
+    fontWeight: "600",
+    color: "#6b7280",
+  },
+  activeHeaderTabText: {
+    color: "#6366f1",
+  },
+  subTabs: {
+    flexDirection: "row",
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
   },
   subTab: {
-    flexDirection: "row",
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10,
-    backgroundColor: "#f8f8f8",
+    borderRadius: 8,
+    marginHorizontal: 4,
   },
-  subButton: {
-    marginHorizontal: 10,
-    backgroundColor: "#d0f0ff",
-    paddingVertical: 6,
-    paddingHorizontal: 15,
-    borderRadius: 10,
+  activeSubTab: {
+    backgroundColor: "#e0e7ff",
   },
-  subButtonText: {
+  subTabText: {
     fontSize: 14,
+    fontWeight: "500",
+    color: "#6b7280",
+  },
+  activeSubTabText: {
+    color: "#4f46e5",
     fontWeight: "600",
   },
-  contentBox: {
-    paddingHorizontal: 20,
-    marginTop: 10,
+  listContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   itemBox: {
-    backgroundColor: "#e7fbe7",
-    padding: 10,
-    borderRadius: 8,
-    marginBottom: 10,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
-  itemText: {
+  itemContent: {
+    marginBottom: 12,
+  },
+  typeBadge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#e0e7ff",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 8,
+  },
+  typeBadgeText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#4f46e5",
+  },
+  itemTitle: {
     fontSize: 16,
     fontWeight: "600",
+    color: "#111827",
+    marginBottom: 4,
   },
-  desc: {
+  itemDescription: {
     fontSize: 14,
-    color: "#333",
+    color: "#6b7280",
+    lineHeight: 20,
+  },
+  actionButton: {
+    backgroundColor: "#6366f1",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignSelf: "flex-end",
+  },
+  lendButton: {
+    backgroundColor: "#10b981",
+  },
+  actionButtonText: {
+    color: "#ffffff",
+    fontWeight: "500",
+    fontSize: 14,
+  },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+  },
+  emptyStateText: {
+    color: "#9ca3af",
+    marginTop: 16,
+    fontSize: 16,
   },
   addButton: {
     position: "absolute",
-    bottom: 30,
-    right: 30,
-    backgroundColor: "#1e88e5",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    bottom: 24,
+    right: 24,
+    backgroundColor: "#6366f1",
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
     elevation: 5,
   },
-  addButtonText: {
-    fontSize: 30,
-    color: "white",
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    paddingHorizontal: 16,
   },
   modalContainer: {
-    flex: 1,
-    backgroundColor: "#00000099",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-  },
-  modalContent: {
-    backgroundColor: "white",
-    borderRadius: 10,
-    padding: 20,
+    backgroundColor: "#ffffff",
+    borderRadius: 12,
+    padding: 24,
   },
   modalTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: 16,
     textAlign: "center",
   },
   label: {
-    marginTop: 10,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: 14,
+    fontWeight: "500",
+    color: "#374151",
+    marginBottom: 4,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#999",
-    padding: 8,
-    borderRadius: 6,
-    marginTop: 5,
+    borderColor: "#e5e7eb",
+    backgroundColor: "#f9fafb",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    fontSize: 14,
+    color: "#111827",
   },
-  row: {
+  multilineInput: {
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  modalButtons: {
     flexDirection: "row",
-    marginTop: 15,
     justifyContent: "space-between",
+    marginTop: 8,
   },
-  option: {
-    borderWidth: 1,
-    padding: 6,
-    borderRadius: 6,
-    borderColor: "#aaa",
-  },
-  submitBtn: {
-    backgroundColor: "#4caf50",
-    padding: 10,
-    borderRadius: 6,
+  modalButton: {
     flex: 1,
-    marginRight: 10,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  cancelBtn: {
-    backgroundColor: "#e53935",
-    padding: 10,
-    borderRadius: 6,
-    flex: 1,
+  cancelButton: {
+    backgroundColor: "#f3f4f6",
+    marginRight: 8,
   },
-  submitText: {
-    color: "white",
-    textAlign: "center",
+  submitButton: {
+    backgroundColor: "#6366f1",
+    marginLeft: 8,
+  },
+  cancelButtonText: {
+    color: "#374151",
     fontWeight: "600",
   },
-  cancelText: {
-    color: "white",
-    textAlign: "center",
+  submitButtonText: {
+    color: "#ffffff",
     fontWeight: "600",
   },
 });

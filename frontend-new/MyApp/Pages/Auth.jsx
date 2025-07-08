@@ -49,7 +49,7 @@ export default function Auth({ navigation }) {
     console.log("🪪 Sending ID Token to backend:", idToken);
     try {
       const response = await fetch(
-        "https://89c6e298ccbe.ngrok-free.app/api/auth/auth0/",
+        "https://neighborly-jek2.onrender.com/api/auth/auth0/",
 
         {
           method: "POST",
@@ -81,7 +81,7 @@ export default function Auth({ navigation }) {
   const checkUserProfile = async (userId) => {
     try {
       const response = await fetch(
-        `https://89c6e298ccbe.ngrok-free.app//api/get_profile/${userId}`,
+        `https://neighborly-jek2.onrender.com//api/get_profile/${userId}`,
         {
           method: "GET",
           headers: {

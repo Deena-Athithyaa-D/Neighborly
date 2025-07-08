@@ -29,7 +29,8 @@ export default function JoinCommunities() {
   const [referralCode, setReferralCode] = useState("");
   const [pendingCommId, setPendingCommId] = useState(null);
   const [pendingCommName, setPendingCommName] = useState("");
-  const [userId, setUserId] = useState(null); // <-- added for dynamic user
+  const [userId, setUserId] = useState(null);
+  const [uuidChecked, setUuidChecked] = useState(false); // 🔐 new state
   const mapRef = useRef(null);
   const navigation = useNavigation();
 
@@ -49,7 +50,7 @@ export default function JoinCommunities() {
       setUserLocation(userLoc);
 
       const response = await fetch(
-        `https://89c6e298ccbe.ngrok-free.app/api/get_communities/${userLoc.latitude}/${userLoc.longitude}`
+        `https://neighborly-jek2.onrender.com/api/get_communities/${userLoc.latitude}/${userLoc.longitude}`
       );
 
       const data = await response.json();
@@ -82,13 +83,23 @@ export default function JoinCommunities() {
 
   useEffect(() => {
     const init = async () => {
-      const storedUuid = await SecureStore.getItemAsync("uuid");
-      if (!storedUuid) {
-        Alert.alert("Error", "UUID not found. Please log in again.");
-        return;
+      try {
+        const storedUuid = await SecureStore.getItemAsync("uuid");
+        if (!storedUuid) {
+          Alert.alert("Session expired", "Please log in again.");
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "Auth" }],
+          });
+          return;
+        }
+        setUserId(storedUuid);
+        await getUserLocation();
+      } catch (err) {
+        console.error("UUID check error:", err);
+      } finally {
+        setUuidChecked(true);
       }
-      setUserId(storedUuid);
-      await getUserLocation();
     };
     init();
   }, []);
@@ -106,10 +117,10 @@ export default function JoinCommunities() {
       setRefresh((prev) => prev + 1);
     }, [])
   );
+
   const handleSelect = async (id, name) => {
     try {
-      await SecureStore.setItemAsync("comm_id", id); // Overwrite or create new
-      console.log(`${id}`);
+      await SecureStore.setItemAsync("comm_id", id);
       setPendingCommId(id);
       setPendingCommName(name);
       setReferralModalVisible(true);
@@ -126,7 +137,7 @@ export default function JoinCommunities() {
 
     try {
       const res = await fetch(
-        "https://89c6e298ccbe.ngrok-free.app/api/create_join",
+        "https://neighborly-jek2.onrender.com/api/create_join",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -163,6 +174,19 @@ export default function JoinCommunities() {
       <Text style={{ color: "#666" }}>{item.location}</Text>
     </TouchableOpacity>
   );
+
+  if (!uuidChecked) {
+    return (
+      <SafeAreaView
+        style={[
+          styles.container,
+          { justifyContent: "center", alignItems: "center" },
+        ]}
+      >
+        <ActivityIndicator size="large" color="#6C63FF" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>

@@ -26,6 +26,7 @@ export default function Communities() {
   const [userId, setUserId] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [uuidChecked, setUuidChecked] = useState(false); // ✅ new
   const navigation = useNavigation();
 
   const getUserLocation = async () => {
@@ -37,11 +38,10 @@ export default function Communities() {
       }
 
       const location = await Location.getCurrentPositionAsync({});
-      const loc = {
+      setUserLocation({
         latitude: location.coords.latitude,
         longitude: location.coords.longitude,
-      };
-      setUserLocation(loc);
+      });
     } catch (err) {
       console.error("Location error:", err);
     }
@@ -55,46 +55,53 @@ export default function Communities() {
 
     try {
       const res = await fetch(
-        `https://34ed-171-79-48-24.ngrok-free.app/api/get_user_communities/${userId}`
+        `https://neighborly-jek2.onrender.com/api/get_user_communities/${userId}`
       );
 
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
 
       const data = await res.json();
 
       if (Array.isArray(data)) {
         if (data.length === 0) {
           setListData([]);
-          setError(
-            "You're not part of any communities yet. Create or join one to get started!"
-          );
+          setError("You're not part of any communities yet.");
         } else {
-          const formatted = data.map((item, idx) => ({
-            id: item.id?.toString() || idx.toString(),
-            name: item.name,
-          }));
-          setListData(formatted);
+          setListData(
+            data.map((item, idx) => ({
+              id: item.id?.toString() || idx.toString(),
+              name: item.name,
+            }))
+          );
         }
       } else {
         throw new Error("Unexpected API response format");
       }
     } catch (err) {
-      console.error("Error fetching communities:", err);
-      setError("Failed to load communities. Please try again later.");
+      console.error("Fetch error:", err);
+      setError("Failed to load communities.");
     } finally {
       setLoading(false);
     }
   };
 
   const init = async () => {
-    const storedUuid = await SecureStore.getItemAsync("uuid");
-    if (storedUuid) {
-      setUserId(storedUuid);
-      await getUserLocation();
-    } else {
-      Alert.alert("Error", "User not logged in or UUID not found.");
+    try {
+      const storedUuid = await SecureStore.getItemAsync("uuid");
+      if (storedUuid) {
+        setUserId(storedUuid);
+        await getUserLocation();
+      } else {
+        Alert.alert("Session Expired", "Please log in again.");
+        navigation.reset({
+          index: 0,
+          routes: [{ name: "Auth" }], // Change 'Auth' to your login screen name
+        });
+      }
+    } catch (err) {
+      console.error("UUID error:", err);
+    } finally {
+      setUuidChecked(true);
     }
   };
 
@@ -103,16 +110,14 @@ export default function Communities() {
   }, []);
 
   useEffect(() => {
+    if (userId) fetchCommunities();
+  }, [userId]);
+
+  useEffect(() => {
     if (communityName !== "" && userId) {
       fetchCommunities();
     }
   }, [communityName]);
-
-  useEffect(() => {
-    if (userId) {
-      fetchCommunities();
-    }
-  }, [userId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -125,8 +130,8 @@ export default function Communities() {
     try {
       await SecureStore.setItemAsync(key, value);
       console.log(`Saved ${value} to SecureStore`);
-    } catch (error) {
-      console.error("SecureStore error:", error);
+    } catch (err) {
+      console.error("SecureStore error:", err);
     }
   };
 
@@ -139,7 +144,7 @@ export default function Communities() {
   const handleCreateCommunity = async () => {
     const name = communityName.trim();
     if (!name || !userLocation || !userId) {
-      Alert.alert("Please enter a community name and ensure location access.");
+      Alert.alert("Enter community name and allow location access.");
       return;
     }
 
@@ -153,7 +158,7 @@ export default function Communities() {
 
     try {
       const res = await fetch(
-        `https://89c6e298ccbe.ngrok-free.app/api/create_community/${userId}`,
+        `https://neighborly-jek2.onrender.com/api/create_community/${userId}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -167,11 +172,11 @@ export default function Communities() {
         setIsModalVisible(false);
         await fetchCommunities();
       } else {
-        throw new Error("Failed to create community");
+        throw new Error("Creation failed.");
       }
     } catch (err) {
-      console.error("Create community error:", err);
-      Alert.alert("Error", "Could not create community. Please try again.");
+      console.error("Create error:", err);
+      Alert.alert("Error", "Could not create community.");
     }
   };
 
@@ -188,7 +193,7 @@ export default function Communities() {
     </TouchableOpacity>
   );
 
-  if (!userId) {
+  if (!uuidChecked) {
     return (
       <SafeAreaView style={[styles.container, styles.center]}>
         <ActivityIndicator size="large" color="#6C63FF" />
@@ -221,7 +226,6 @@ export default function Communities() {
         </View>
       ) : error ? (
         <View style={[styles.center, { flex: 1, padding: 20 }]}>
-          <Text>No communities at present!</Text>
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity
             style={styles.ctaButton}
@@ -277,6 +281,7 @@ export default function Communities() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#ECECFF" },
+  center: { justifyContent: "center", alignItems: "center" },
   title: {
     fontSize: 20,
     fontWeight: "bold",
@@ -372,11 +377,6 @@ const styles = StyleSheet.create({
     color: "#4C3E99",
     textAlign: "center",
     marginBottom: 20,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#4C3E99",
-    textAlign: "center",
   },
   ctaButton: {
     backgroundColor: "#6C63FF",
