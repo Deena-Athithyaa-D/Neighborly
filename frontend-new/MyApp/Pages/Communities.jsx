@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
+import * as SecureStore from "expo-secure-store";
 
 export default function Communities() {
   const [selectedTitle, setSelectedTitle] = useState("Communities Near You");
@@ -21,9 +22,8 @@ export default function Communities() {
   const [communityName, setCommunityName] = useState("");
   const [userLocation, setUserLocation] = useState(null);
   const [listData, setListData] = useState([]);
+  const [userId, setUserId] = useState(null);
   const navigation = useNavigation();
-
-  const user_id = "17d45b9c-be88-4445-9cb0-7fee00ef8b18"; // Hardcoded
 
   const getUserLocation = async () => {
     try {
@@ -43,38 +43,47 @@ export default function Communities() {
       console.error("Location error:", err);
     }
   };
-  useEffect(() => {
-    const getCommunities = async () => {
-      try {
-        const res = await fetch(
-          `https://4d71-202-53-4-31.ngrok-free.app//api/get_user_communities/${user_id}`
-        );
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          const formatted = data.map((item, idx) => ({
-            id: item.id?.toString() || idx.toString(),
-            name: item.name,
-          }));
-          setListData(formatted);
-          console.log(data);
-        } else {
-          console.warn("Unexpected API response format:", data);
-        }
-      } catch (err) {
-        console.error("Error fetching communities:", err);
-      }
-    };
 
-    getCommunities();
-  }, [communityName]);
+  const getCommunities = async (uuid) => {
+    try {
+      const res = await fetch(
+        `https://89c6e298ccbe.ngrok-free.app/api/get_user_communities/${uuid}`
+      );
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        const formatted = data.map((item, idx) => ({
+          id: item.id?.toString() || idx.toString(),
+          name: item.name,
+        }));
+        setListData(formatted);
+        console.log(data);
+      } else {
+        console.warn("Unexpected API response format:", data);
+      }
+    } catch (err) {
+      console.error("Error fetching communities:", err);
+    }
+  };
 
   useEffect(() => {
     const init = async () => {
-      await getUserLocation();
-      await fetchCommunities();
+      const storedUuid = await SecureStore.getItemAsync("uuid");
+      if (storedUuid) {
+        setUserId(storedUuid);
+        await getUserLocation();
+        await getCommunities(storedUuid);
+      } else {
+        Alert.alert("Error", "User not logged in or UUID not found.");
+      }
     };
     init();
   }, []);
+
+  useEffect(() => {
+    if (communityName !== "" && userId) {
+      getCommunities(userId);
+    }
+  }, [communityName]);
 
   useFocusEffect(
     useCallback(() => {
@@ -82,14 +91,24 @@ export default function Communities() {
     }, [])
   );
 
-  const handleSelect = (id, name) => {
+  const saveToSecureStore = async (key, value) => {
+    try {
+      await SecureStore.setItemAsync(key, value);
+      console.log(`Saved ${value} to SecureStore`);
+    } catch (error) {
+      console.error("SecureStore error:", error);
+    }
+  };
+
+  const handleSelect = async (id, name) => {
     setSelectedTitle(name);
+    await saveToSecureStore("comm_id", id);
     navigation.navigate("MainTabs", { screen: "Home" });
   };
 
   const handleCreateCommunity = async () => {
     const name = communityName.trim();
-    if (!name || !userLocation) {
+    if (!name || !userLocation || !userId) {
       Alert.alert("Please enter a community name and ensure location access.");
       return;
     }
@@ -99,12 +118,12 @@ export default function Communities() {
       location: "User Current Location",
       latitude: userLocation.latitude.toString(),
       longtitude: userLocation.longitude.toString(),
-      admin_id: user_id,
+      admin_id: userId,
     };
 
     try {
       const res = await fetch(
-        `https://4d71-202-53-4-31.ngrok-free.app//api/create_community/${user_id}`,
+        `https://89c6e298ccbe.ngrok-free.app/api/create_community/${userId}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -116,7 +135,7 @@ export default function Communities() {
         Alert.alert("Success", "Community created!");
         setCommunityName("");
         setIsModalVisible(false);
-        // await  getCommunities();
+        await getCommunities(userId); // 🔁 REFRESH COMMUNITY LIST HERE
       } else {
         Alert.alert("Failed to create community.");
       }
@@ -200,10 +219,7 @@ export default function Communities() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#ECECFF",
-  },
+  container: { flex: 1, backgroundColor: "#ECECFF" },
   title: {
     fontSize: 20,
     fontWeight: "bold",
@@ -223,17 +239,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 20,
   },
-  topButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
+  topButtonText: { color: "#fff", fontWeight: "bold" },
   listContent: {
     paddingHorizontal: 20,
     paddingBottom: 30,
     gap: 10,
   },
   circleItem: {
-    backgroundColor: "#D6D1FF", // Darker shade of lavender
+    backgroundColor: "#D6D1FF",
     borderRadius: 50,
     paddingVertical: 12,
     paddingHorizontal: 20,
@@ -247,14 +260,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 3,
   },
-
   circleItemText: {
-    color: "#000", // Ensures visibility
+    color: "#000",
     fontWeight: "bold",
     fontSize: 16,
     textAlign: "center",
   },
-
   modalContainer: {
     flex: 1,
     justifyContent: "center",

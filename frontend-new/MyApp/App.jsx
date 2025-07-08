@@ -11,7 +11,7 @@ import JoinCommunities from "./Pages/JoinCommunities";
 import ExchangeHub from "./Pages/ExchangeHub";
 import Activity from "./Pages/Activity";
 import Auth from "./Pages/Auth"; // Make sure this is using our manual auth0-service
-
+import ProfileForm from "./Pages/ProfileForm";
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
@@ -58,6 +58,11 @@ export default function App() {
         <Stack.Screen
           name="Communities"
           component={Communities}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileForm}
           options={{ headerShown: false }}
         />
         <Stack.Screen

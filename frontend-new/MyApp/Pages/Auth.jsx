@@ -4,15 +4,14 @@ import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import * as Crypto from "expo-crypto";
 import { jwtDecode } from "jwt-decode";
-import config from "./auth0-configuration";
 import * as SecureStore from "expo-secure-store";
+import config from "./auth0-configuration";
 
 WebBrowser.maybeCompleteAuthSession();
 
 export default function Auth({ navigation }) {
   const [userInfo, setUserInfo] = useState(null);
   const [nonce, setNonce] = useState("");
-  const [accessToken, setAccessToken] = useState("");
   const [uuid, setUuid] = useState("");
 
   useEffect(() => {
@@ -47,17 +46,16 @@ export default function Auth({ navigation }) {
   );
 
   const sendIdTokenToBackend = async (idToken) => {
+    console.log("🪪 Sending ID Token to backend:", idToken);
     try {
       const response = await fetch(
-        "https://4d71-202-53-4-31.ngrok-free.app/api/auth/auth0/",
+        "https://89c6e298ccbe.ngrok-free.app/api/auth/auth0/",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            id_token: idToken,
-          }),
+          body: JSON.stringify({ id_token: idToken }),
         }
       );
 
@@ -66,17 +64,44 @@ export default function Auth({ navigation }) {
       }
 
       const data = await response.json();
-      const receivedUuid = data.uuid; // Assuming backend returns { uuid: "..." }
+      const receivedUuid = data.uuid;
 
-      console.log("Received UUID:", receivedUuid);
+      console.log("✅ Received UUID from backend:", receivedUuid);
       setUuid(receivedUuid);
-
-      // Store UUID securely
       await SecureStore.setItemAsync("uuid", receivedUuid);
 
       return receivedUuid;
     } catch (error) {
-      console.error("Error sending ID token to backend:", error);
+      console.error("❌ Error sending ID token to backend:", error);
+      throw error;
+    }
+  };
+
+  const checkUserProfile = async (userId) => {
+    try {
+      const response = await fetch(
+        `https://89c6e298ccbe.ngrok-free.app//api/get_profile/${userId}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+      console.log(`🔍 Checking profile: ${response.status}`);
+
+      if (response.status === 404) {
+        return { status: 404 };
+      }
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return { status: 200, data };
+    } catch (error) {
+      console.error("❌ Error checking user profile:", error);
       throw error;
     }
   };
@@ -94,23 +119,26 @@ export default function Auth({ navigation }) {
           }, {});
 
         if (params.id_token && params.access_token) {
-          setAccessToken(params.access_token);
-
           const decoded = jwtDecode(params.id_token);
+          console.log("📥 Decoded ID Token Payload:", decoded);
 
-          // Verify nonce
           if (decoded.nonce !== nonce) {
             Alert.alert("Error", "Invalid authentication response");
             return;
           }
 
           try {
-            // Send ID token to backend and get UUID
             const uuid = await sendIdTokenToBackend(params.id_token);
-
             setUserInfo(decoded);
-            Alert.alert("Success", `Welcome ${decoded.name}`);
-            navigation.replace("Communities");
+
+            const profileResult = await checkUserProfile(uuid);
+
+            if (profileResult.status === 404) {
+              navigation.replace("Profile");
+            } else {
+              Alert.alert("Success", `Welcome ${decoded.name}`);
+              navigation.replace("Communities");
+            }
           } catch (error) {
             Alert.alert("Error", "Failed to communicate with backend");
           }
