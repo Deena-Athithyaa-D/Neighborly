@@ -50,6 +50,7 @@ export default function Auth({ navigation }) {
     try {
       const response = await fetch(
         "https://89c6e298ccbe.ngrok-free.app/api/auth/auth0/",
+
         {
           method: "POST",
           headers: {
