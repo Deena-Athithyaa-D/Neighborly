@@ -13,8 +13,8 @@ import {
 import MapView, { Marker, PROVIDER_GOOGLE, Callout } from "react-native-maps";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import * as Location from "expo-location";
-import * as SecureStore from "expo-secure-store";
 import { MaterialIcons } from "@expo/vector-icons";
+import * as SecureStore from "expo-secure-store";
 
 export default function JoinCommunities() {
   const [selectedId, setSelectedId] = useState(null);
@@ -29,23 +29,9 @@ export default function JoinCommunities() {
   const [referralCode, setReferralCode] = useState("");
   const [pendingCommId, setPendingCommId] = useState(null);
   const [pendingCommName, setPendingCommName] = useState("");
-  const [userId, setUserId] = useState(null);
+  const [userId, setUserId] = useState(null); // <-- added for dynamic user
   const mapRef = useRef(null);
   const navigation = useNavigation();
-
-  const checkAuth = async () => {
-    try {
-      const uuid = await SecureStore.getItemAsync("uuid");
-      if (!uuid) {
-        navigation.navigate("Auth");
-        return;
-      }
-      setUserId(uuid);
-    } catch (error) {
-      console.error("Error checking auth:", error);
-      navigation.navigate("Auth");
-    }
-  };
 
   const getUserLocation = async () => {
     try {
@@ -63,7 +49,7 @@ export default function JoinCommunities() {
       setUserLocation(userLoc);
 
       const response = await fetch(
-        `https://34ed-171-79-48-24.ngrok-free.app/api/get_communities/${userLoc.latitude}/${userLoc.longitude}`
+        `https://89c6e298ccbe.ngrok-free.app/api/get_communities/${userLoc.latitude}/${userLoc.longitude}`
       );
 
       const data = await response.json();
@@ -95,14 +81,17 @@ export default function JoinCommunities() {
   };
 
   useEffect(() => {
-    checkAuth();
+    const init = async () => {
+      const storedUuid = await SecureStore.getItemAsync("uuid");
+      if (!storedUuid) {
+        Alert.alert("Error", "UUID not found. Please log in again.");
+        return;
+      }
+      setUserId(storedUuid);
+      await getUserLocation();
+    };
+    init();
   }, []);
-
-  useEffect(() => {
-    if (userId) {
-      getUserLocation();
-    }
-  }, [userId]);
 
   useEffect(() => {
     if (userLocation) {
@@ -117,27 +106,30 @@ export default function JoinCommunities() {
       setRefresh((prev) => prev + 1);
     }, [])
   );
-
-  const handleSelect = (id, name) => {
-    setPendingCommId(id);
-    setPendingCommName(name);
-    setReferralModalVisible(true);
+  const handleSelect = async (id, name) => {
+    try {
+      await SecureStore.setItemAsync("comm_id", id); // Overwrite or create new
+      console.log(`${id}`);
+      setPendingCommId(id);
+      setPendingCommName(name);
+      setReferralModalVisible(true);
+    } catch (error) {
+      Alert.alert("Error", "Failed to store community ID.");
+    }
   };
 
   const joinCommunity = async (comm_id, referral_code) => {
     if (!userId) {
-      Alert.alert("Error", "User not authenticated");
+      Alert.alert("User ID not loaded. Try again.");
       return;
     }
 
     try {
       const res = await fetch(
-        "https://34ed-171-79-48-24.ngrok-free.app/api/create_join",
+        "https://89c6e298ccbe.ngrok-free.app/api/create_join",
         {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             user_id: userId,
             comm_id: comm_id,
@@ -150,7 +142,7 @@ export default function JoinCommunities() {
       const result = await res.json();
 
       if (res.ok) {
-        Alert.alert("Joined!", `You've successfully joined ${pendingCommName}`);
+        Alert.alert("Joined!", `You’ve successfully joined ${pendingCommName}`);
         setReferralModalVisible(false);
         setReferralCode("");
         navigation.navigate("MainTabs", { screen: "Home" });
@@ -171,14 +163,6 @@ export default function JoinCommunities() {
       <Text style={{ color: "#666" }}>{item.location}</Text>
     </TouchableOpacity>
   );
-
-  if (!userId) {
-    return (
-      <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
-        <ActivityIndicator size="large" color="#6C63FF" />
-      </View>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -298,14 +282,8 @@ export default function JoinCommunities() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f0f4ff",
-  },
-  mapContainer: {
-    height: "40%",
-    width: "100%",
-  },
+  container: { flex: 1, backgroundColor: "#f0f4ff" },
+  mapContainer: { height: "40%", width: "100%" },
   mapTitleContainer: {
     position: "absolute",
     top: 10,
@@ -321,18 +299,9 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 2 },
   },
-  mapTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#4a4a8c",
-  },
-  map: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  list: {
-    flex: 1,
-    width: "100%",
-  },
+  mapTitle: { fontSize: 18, fontWeight: "bold", color: "#4a4a8c" },
+  map: { ...StyleSheet.absoluteFillObject },
+  list: { flex: 1, width: "100%" },
   item: {
     padding: 15,
     marginVertical: 10,
@@ -348,16 +317,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
-  itemText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#4a4a8c",
-  },
-  markerLabelText: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#333",
-  },
+  itemText: { fontSize: 18, fontWeight: "bold", color: "#4a4a8c" },
+  markerLabelText: { fontSize: 14, fontWeight: "bold", color: "#333" },
   markerContainer: {
     backgroundColor: "white",
     padding: 6,
